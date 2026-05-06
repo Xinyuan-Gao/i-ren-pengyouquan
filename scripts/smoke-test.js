@@ -4,7 +4,7 @@ const assert = require("assert");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { createStore, normalizeTags, verifyPassword } = require("../src/main/storage");
+const { createStore, normalizeTags } = require("../src/main/storage");
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "private-moments-test-"));
 const imagePath = path.join(tempDir, "sample.png");
@@ -13,12 +13,8 @@ fs.writeFileSync(imagePath, Buffer.from("89504e470d0a1a0a", "hex"));
 const store = createStore(tempDir);
 
 assert.deepStrictEqual(normalizeTags("生活, 工作 #想法 生活"), ["生活", "工作", "想法"]);
-assert.strictEqual(store.getAuthStatus().hasPassword, false);
-store.setPassword("1234");
-assert.strictEqual(store.getAuthStatus().hasPassword, true);
-assert.strictEqual(store.unlock("nope").ok, false);
-assert.strictEqual(store.unlock("1234").ok, true);
-assert.strictEqual(verifyPassword("1234", JSON.parse(fs.readFileSync(store.paths.authPath, "utf8"))), true);
+store.init();
+assert.strictEqual(fs.existsSync(path.join(store.paths.dataDir, "auth.json")), false);
 
 const created = store.createRecord({
   text: "今天状态不错",
