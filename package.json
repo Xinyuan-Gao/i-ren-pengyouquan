@@ -1,0 +1,23 @@
+{
+  "name": "private-moments",
+  "version": "0.1.0",
+  "description": "i 人专属的本地私密朋友圈桌面软件",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "NODE_OPTIONS= electron .",
+    "package:mac": "NODE_OPTIONS= electron-packager . \"i 人朋友圈\" --platform=darwin --arch=arm64 --out=release --overwrite --electron-version=30.5.1 --electron-zip-dir=.electron-download --app-version=0.1.0 --app-bundle-id=com.local.private-moments --app-category-type=public.app-category.productivity --icon=assets/icon --asar --ignore='^/release($|/)' --ignore='^/.npm-cache($|/)' --ignore='^/.electron-download($|/)' --ignore='^/tests($|/)' --ignore='^/scripts($|/)'",
+    "smoke": "node scripts/smoke-test.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "keywords": [
+    "electron",
+    "diary",
+    "timeline"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@electron/packager": "^20.0.0",
+    "electron": "^30.5.1"
+  }
+}

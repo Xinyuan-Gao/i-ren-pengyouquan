@@ -1,0 +1,10 @@
+node_modules/
+.npm-cache/
+.electron-download/
+release/
+dist/
+.DS_Store
+*.tmp
+*.log
+
+assets/app-icon.iconset/
