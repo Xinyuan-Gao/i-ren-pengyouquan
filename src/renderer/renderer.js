@@ -41,6 +41,7 @@ const state = {
   draftTags: "",
   draftMood: "calm",
   draftLocation: "",
+  sidePanel: "compose",
   theme: "warm",
   busy: false
 };
@@ -210,8 +211,7 @@ function renderApp() {
     <div class="app-frame">
       ${renderRail()}
       <section class="compose-column">
-        ${renderComposer()}
-        ${renderTodayStatus()}
+        ${renderSidePanel()}
       </section>
       <main class="main-column">
         ${renderMainHeader()}
@@ -219,10 +219,6 @@ function renderApp() {
           ${renderCurrentView()}
         </div>
       </main>
-      <aside class="inspector">
-        ${renderInspector()}
-        ${renderWeekReview()}
-      </aside>
     </div>
   `;
 
@@ -246,13 +242,11 @@ function renderRail() {
         ${renderNavButton("month", "◱", "月份回看")}
         ${renderNavButton("favorites", "☆", "收藏")}
         ${renderNavButton("memories", "◷", "回顾")}
-      </nav>
-      <div class="rail-bottom">
         ${renderThemeSwitcher()}
         <button data-export type="button">⇩ 导出</button>
         <button id="lock-app" type="button">⌂ 回到入口</button>
         <button id="settings-button" type="button">⚙ 设置</button>
-      </div>
+      </nav>
     </aside>
   `;
 }
@@ -272,6 +266,24 @@ function renderThemeSwitcher() {
 
 function renderNavButton(view, icon, label) {
   return `<button class="${state.view === view ? "active" : ""}" data-nav-view="${view}" type="button"><span>${icon}</span>${label}</button>`;
+}
+
+function renderSidePanel() {
+  const tabs = [
+    { id: "compose", label: "写下" },
+    { id: "search", label: "搜索" },
+    { id: "review", label: "回顾" }
+  ];
+  return `
+    <div class="side-panel-tabs" aria-label="侧栏工具">
+      ${tabs.map((tab) => `
+        <button class="${state.sidePanel === tab.id ? "active" : ""}" data-side-panel="${tab.id}" type="button">${tab.label}</button>
+      `).join("")}
+    </div>
+    ${state.sidePanel === "compose" ? `${renderComposer()}${renderTodayStatus()}` : ""}
+    ${state.sidePanel === "search" ? renderInspector() : ""}
+    ${state.sidePanel === "review" ? renderWeekReview() : ""}
+  `;
 }
 
 function renderComposer() {
@@ -652,6 +664,12 @@ function bindAppEvents() {
       renderApp();
     });
   });
+  document.querySelectorAll("[data-side-panel]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.sidePanel = button.dataset.sidePanel;
+      renderApp();
+    });
+  });
 
   bindComposerEvents();
   bindFilterEvents();
@@ -661,6 +679,7 @@ function bindAppEvents() {
 
 function bindComposerEvents() {
   const text = document.querySelector("#record-text");
+  if (!text) return;
   const charCount = document.querySelector("#char-count");
   const mood = document.querySelector("#record-mood");
   const tags = document.querySelector("#record-tags");
@@ -731,8 +750,10 @@ function addPendingImages(paths) {
 }
 
 function bindFilterEvents() {
+  const search = document.querySelector("#search");
+  if (!search) return;
   let timer;
-  document.querySelector("#search").addEventListener("input", (event) => {
+  search.addEventListener("input", (event) => {
     window.clearTimeout(timer);
     timer = window.setTimeout(async () => {
       state.query = event.target.value;
@@ -754,12 +775,12 @@ function bindFilterEvents() {
       renderApp();
     });
   });
-  document.querySelector("#date-from").addEventListener("change", async (event) => {
+  document.querySelector("#date-from")?.addEventListener("change", async (event) => {
     state.dateFrom = event.target.value;
     await loadRecords();
     renderApp();
   });
-  document.querySelector("#date-to").addEventListener("change", async (event) => {
+  document.querySelector("#date-to")?.addEventListener("change", async (event) => {
     state.dateTo = event.target.value;
     await loadRecords();
     renderApp();
@@ -795,6 +816,7 @@ function bindContentEvents() {
       state.editing = record;
       state.keepAttachments = [...record.attachments];
       state.pendingImages = [];
+      state.sidePanel = "compose";
       renderApp();
     }
     if (del && window.confirm("确定删除这条记录吗？")) {
