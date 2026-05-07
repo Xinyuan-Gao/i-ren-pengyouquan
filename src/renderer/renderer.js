@@ -23,7 +23,6 @@ const THEME_OPTIONS = [
 ];
 
 const state = {
-  hasPassword: false,
   records: [],
   allRecords: [],
   query: "",
@@ -38,6 +37,9 @@ const state = {
   editing: null,
   keepAttachments: [],
   pendingLocate: "",
+  draftText: "",
+  draftTags: "",
+  draftMood: "calm",
   draftLocation: "",
   theme: "warm",
   busy: false
@@ -135,8 +137,6 @@ async function boot() {
   document.title = APP_NAME;
   state.theme = localStorage.getItem("privateMomentsTheme") || "warm";
   applyTheme();
-  const status = await run(() => api.authStatus());
-  state.hasPassword = Boolean(status && status.hasPassword);
   renderAuth();
 }
 
@@ -148,77 +148,25 @@ function applyTheme() {
 function renderAuth() {
   document.body.classList.add("auth-mode");
   app.innerHTML = `
-    <section class="auth-shell">
-      <div class="auth-years" aria-hidden="true">
-        <span>2025</span>
-        <span>2024</span>
-        <span>2023</span>
-        <span>2022</span>
-        <span>2021</span>
-        <span>2020</span>
-        <span>2019</span>
-      </div>
-      <div class="auth-lock">▣ 本地私密空间</div>
-      <div class="auth-visual">
-        <img class="brand-icon" src="./assets/app-icon.png" alt="i 人朋友圈图标">
-        <p class="eyebrow">只给自己看的空间</p>
-        <h1>${APP_NAME}</h1>
-        <i></i>
-        <p>把那些不必发出去、但值得留下来的片刻，<br>安静地收进自己的时间线。</p>
-      </div>
-      <form class="auth-panel" id="auth-form">
-        <div class="auth-stamp" aria-hidden="true">PRIVATE TIMELINE<br>FOR MYSELF ONLY</div>
-        <p class="eyebrow">${state.hasPassword ? "欢迎回来" : "第一次使用"}</p>
-        <h2>${state.hasPassword ? "输入密码解锁" : "设置本地密码"}</h2>
-        <label>
-          <span>密码</span>
-          <div class="password-field">
-            <input id="password" type="password" minlength="4" autocomplete="${state.hasPassword ? "current-password" : "new-password"}" autofocus required>
-            <button id="toggle-password" type="button" aria-label="显示或隐藏密码">⊙</button>
-          </div>
-        </label>
-        ${state.hasPassword ? "" : `
-          <label>
-            <span>再次确认</span>
-            <input id="confirm-password" type="password" minlength="4" autocomplete="new-password" required>
-          </label>
-        `}
-        <button class="primary wide" type="submit">${state.hasPassword ? "进入朋友圈" : "开始记录"}</button>
-        <p class="hint">内容和图片只保存在这台电脑的应用数据目录里。</p>
-      </form>
-      <div class="auth-notebook" aria-hidden="true">
-        <span>记录，为了更好地<br>遇见自己。</span>
-        <b></b>
-      </div>
-      <p class="auth-footer">私密 · 安静 · 自由 · 收录生活的细微光芒</p>
+    <section class="auth-shell" id="enter-app" role="button" tabindex="0" aria-label="进入朋友圈">
+      <p class="auth-enter-hint">轻点任意一处，让今天浮上来。</p>
     </section>
   `;
 
-  document.querySelector("#toggle-password").addEventListener("click", () => {
-    const passwordInput = document.querySelector("#password");
-    passwordInput.type = passwordInput.type === "password" ? "text" : "password";
-  });
-
-  document.querySelector("#auth-form").addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const password = document.querySelector("#password").value;
-    if (!state.hasPassword) {
-      const confirm = document.querySelector("#confirm-password").value;
-      if (password !== confirm) {
-        toast("两次密码不一致", "error");
-        return;
-      }
-      const result = await run(() => api.setPassword(password), "已设置密码");
-      if (!result) return;
-    } else {
-      const result = await run(() => api.unlock(password));
-      if (!result || !result.ok) {
-        toast("密码不正确", "error");
-        return;
-      }
-    }
+  const enterApp = async () => {
+    const result = await run(() => api.enter());
+    if (!result || !result.ok) return;
     await loadRecords();
     renderApp();
+  };
+
+  const shell = document.querySelector("#enter-app");
+  shell.focus();
+  shell.addEventListener("click", enterApp);
+  shell.addEventListener("keydown", async (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    await enterApp();
   });
 }
 
@@ -302,7 +250,7 @@ function renderRail() {
       <div class="rail-bottom">
         ${renderThemeSwitcher()}
         <button data-export type="button">⇩ 导出</button>
-        <button id="lock-app" type="button">⌂ 锁屏</button>
+        <button id="lock-app" type="button">⌂ 回到入口</button>
         <button id="settings-button" type="button">⚙ 设置</button>
       </div>
     </aside>
@@ -327,8 +275,9 @@ function renderNavButton(view, icon, label) {
 }
 
 function renderComposer() {
-  const text = state.editing ? state.editing.text : "";
-  const tags = state.editing ? state.editing.tags.join(" ") : "";
+  const text = state.editing ? state.editing.text : state.draftText;
+  const tags = state.editing ? state.editing.tags.join(" ") : state.draftTags;
+  const moodValue = state.editing ? state.editing.mood : state.draftMood;
   const location = state.editing ? state.editing.location : state.draftLocation;
   const imageCount = state.pendingImages.length + state.keepAttachments.length;
   return `
@@ -345,7 +294,7 @@ function renderComposer() {
         <label>
           <span>心情</span>
           <select id="record-mood">
-            ${MOODS.map((mood) => `<option value="${mood.id}" ${mood.id === (state.editing ? state.editing.mood : "calm") ? "selected" : ""}>${mood.icon} ${mood.label}</option>`).join("")}
+            ${MOODS.map((mood) => `<option value="${mood.id}" ${mood.id === moodValue ? "selected" : ""}>${mood.icon} ${mood.label}</option>`).join("")}
           </select>
         </label>
         <label>
@@ -357,7 +306,7 @@ function renderComposer() {
         <div class="attachment-actions">
           <span>图片（${imageCount}/9）</span>
         </div>
-        <button class="upload-box" id="choose-images" type="button">＋ 添加图片或拖拽上传</button>
+        <button class="upload-box" id="choose-images" type="button">＋ 添加图片、粘贴或拖拽上传</button>
         ${imageCount ? `<div class="composer-preview" id="image-chips">${renderImagePreview()}</div>` : '<div id="image-chips"></div>'}
       </div>
       <div class="field-row">
@@ -713,16 +662,34 @@ function bindAppEvents() {
 function bindComposerEvents() {
   const text = document.querySelector("#record-text");
   const charCount = document.querySelector("#char-count");
+  const mood = document.querySelector("#record-mood");
+  const tags = document.querySelector("#record-tags");
+  const location = document.querySelector("#record-location");
   text.addEventListener("input", () => {
     charCount.textContent = `${text.value.length}/500`;
+    if (!state.editing) state.draftText = text.value;
+  });
+  mood.addEventListener("change", () => {
+    if (!state.editing) state.draftMood = mood.value;
+  });
+  tags.addEventListener("input", () => {
+    if (!state.editing) state.draftTags = tags.value;
+  });
+  location.addEventListener("input", () => {
+    if (!state.editing) state.draftLocation = location.value;
   });
 
   document.querySelector("#choose-images").addEventListener("click", async () => {
     const paths = await run(() => api.chooseImages());
-    if (!paths) return;
-    const room = 9 - state.pendingImages.length - state.keepAttachments.length;
-    state.pendingImages.push(...paths.slice(0, room));
-    renderApp();
+    addPendingImages(paths);
+  });
+  document.querySelector(".composer").addEventListener("paste", async (event) => {
+    const items = Array.from(event.clipboardData?.items || []);
+    const hasImage = items.some((item) => item.type.startsWith("image/"));
+    if (!hasImage) return;
+    event.preventDefault();
+    const paths = await run(() => api.pasteImages(), "已粘贴图片");
+    addPendingImages(paths);
   });
 
   document.querySelector("#save-record").addEventListener("click", saveRecord);
@@ -741,6 +708,26 @@ function bindComposerEvents() {
     if (pending) state.pendingImages = state.pendingImages.filter((filePath) => filePath !== pending.dataset.removePending);
     if (kept || pending) renderApp();
   });
+}
+
+function syncDraftFromComposer() {
+  if (state.editing) return;
+  state.draftText = document.querySelector("#record-text")?.value ?? state.draftText;
+  state.draftMood = document.querySelector("#record-mood")?.value ?? state.draftMood;
+  state.draftTags = document.querySelector("#record-tags")?.value ?? state.draftTags;
+  state.draftLocation = document.querySelector("#record-location")?.value ?? state.draftLocation;
+}
+
+function addPendingImages(paths) {
+  if (!paths || !paths.length) return;
+  syncDraftFromComposer();
+  const room = 9 - state.pendingImages.length - state.keepAttachments.length;
+  if (room <= 0) {
+    toast("最多添加 9 张图片", "error");
+    return;
+  }
+  state.pendingImages.push(...paths.slice(0, room));
+  renderApp();
 }
 
 function bindFilterEvents() {
@@ -894,6 +881,9 @@ async function saveRecord() {
   state.editing = null;
   state.pendingImages = [];
   state.keepAttachments = [];
+  state.draftText = "";
+  state.draftTags = "";
+  state.draftMood = "calm";
   state.draftLocation = "";
   state.month = toMonthKey(result.createdAt || new Date());
   state.selectedDay = toDateKey(result.createdAt || new Date());
@@ -913,6 +903,10 @@ function lockToAuth() {
   state.pendingImages = [];
   state.editing = null;
   state.keepAttachments = [];
+  state.draftText = "";
+  state.draftTags = "";
+  state.draftMood = "calm";
+  state.draftLocation = "";
   renderAuth();
 }
 

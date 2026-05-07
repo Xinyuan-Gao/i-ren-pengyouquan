@@ -23,21 +23,12 @@ function writeTinyPng(dir, name = "source.png") {
   return filePath;
 }
 
-test("first-run password setup and unlock behavior", () => {
+test("first-run storage starts without auth files", () => {
   const { store } = makeTempStore();
 
-  assert.deepEqual(store.getAuthStatus(), { hasPassword: false });
-  assert.throws(() => store.setPassword("abc"), /密码至少需要 4 位/);
-
-  assert.deepEqual(store.setPassword("correct horse"), { ok: true });
-  assert.deepEqual(store.getAuthStatus(), { hasPassword: true });
-  assert.equal(store.unlock("wrong").ok, false);
-  assert.equal(store.unlock("correct horse").ok, true);
-
-  const authFile = fs.readFileSync(store.paths.authPath, "utf8");
-  assert.equal(authFile.includes("correct horse"), false);
-  assert.match(authFile, /"salt"/);
-  assert.match(authFile, /"hash"/);
+  store.init();
+  assert.equal(fs.existsSync(path.join(store.paths.dataDir, "auth.json")), false);
+  assert.equal(fs.existsSync(store.paths.recordsPath), true);
 });
 
 test("records can be created, read, updated, deleted, searched, and mood-filtered", () => {
@@ -138,9 +129,8 @@ test("image attachments are copied into app storage without mutating source file
   );
 });
 
-test("json export contains records but no password material", () => {
+test("json export contains records but no auth material", () => {
   const { baseDir, store } = makeTempStore();
-  store.setPassword("private-pass");
   const sourceImage = writeTinyPng(baseDir);
   const record = store.createRecord({
     text: "Export me",

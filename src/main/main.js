@@ -1,6 +1,7 @@
 "use strict";
 
-const { app, BrowserWindow, dialog, ipcMain, protocol, net, screen } = require("electron");
+const { app, BrowserWindow, clipboard, dialog, ipcMain, protocol, net, screen } = require("electron");
+const fs = require("fs");
 const path = require("path");
 const { pathToFileURL } = require("url");
 const { APP_NAME } = require("../shared/constants");
@@ -8,7 +9,7 @@ const { createStore } = require("./storage");
 
 let mainWindow;
 let store;
-let unlocked = false;
+let entered = false;
 
 const WINDOW_SIZE = {
   width: 1080,
@@ -19,8 +20,8 @@ const WINDOW_SIZE = {
   maxHeight: 820
 };
 
-function requireUnlocked() {
-  if (!unlocked) throw new Error("请先解锁");
+function requireEntered() {
+  if (!entered) throw new Error("请先进入朋友圈");
 }
 
 function createWindow() {
@@ -57,24 +58,17 @@ function createWindow() {
 }
 
 function registerIpc() {
-  ipcMain.handle("auth:status", () => store.getAuthStatus());
-  ipcMain.handle("auth:set-password", (_event, password) => {
-    const result = store.setPassword(password);
-    unlocked = true;
-    return result;
-  });
-  ipcMain.handle("auth:unlock", (_event, password) => {
-    const result = store.unlock(password);
-    unlocked = result.ok;
-    return result;
+  ipcMain.handle("auth:enter", () => {
+    entered = true;
+    return { ok: true };
   });
   ipcMain.handle("auth:lock", () => {
-    unlocked = false;
+    entered = false;
     return { ok: true };
   });
 
   ipcMain.handle("images:choose", async () => {
-    requireUnlocked();
+    requireEntered();
     const result = await dialog.showOpenDialog(mainWindow, {
       title: "选择图片",
       properties: ["openFile", "multiSelections"],
@@ -82,33 +76,43 @@ function registerIpc() {
     });
     return result.canceled ? [] : result.filePaths.slice(0, 9);
   });
+  ipcMain.handle("images:paste", () => {
+    requireEntered();
+    const image = clipboard.readImage();
+    if (image.isEmpty()) return [];
+    const pastedDir = path.join(app.getPath("temp"), "private-moments-pasted-images");
+    fs.mkdirSync(pastedDir, { recursive: true });
+    const filePath = path.join(pastedDir, `pasted-${Date.now()}.png`);
+    fs.writeFileSync(filePath, image.toPNG());
+    return [filePath];
+  });
 
   ipcMain.handle("records:list", (_event, filters) => {
-    requireUnlocked();
+    requireEntered();
     return store.listRecords(filters);
   });
   ipcMain.handle("records:create", (_event, input) => {
-    requireUnlocked();
+    requireEntered();
     return store.createRecord(input || {});
   });
   ipcMain.handle("records:update", (_event, id, input) => {
-    requireUnlocked();
+    requireEntered();
     return store.updateRecord(id, input || {});
   });
   ipcMain.handle("records:toggle-favorite", (_event, id) => {
-    requireUnlocked();
+    requireEntered();
     return store.toggleFavorite(id);
   });
   ipcMain.handle("records:toggle-like", (_event, id) => {
-    requireUnlocked();
+    requireEntered();
     return store.toggleLike(id);
   });
   ipcMain.handle("records:delete", (_event, id) => {
-    requireUnlocked();
+    requireEntered();
     return store.deleteRecord(id);
   });
   ipcMain.handle("records:export", async () => {
-    requireUnlocked();
+    requireEntered();
     const result = await dialog.showSaveDialog(mainWindow, {
       title: "导出 JSON",
       defaultPath: `private-moments-${new Date().toISOString().slice(0, 10)}.json`,
@@ -124,6 +128,7 @@ app.whenReady().then(() => {
   store.init();
 
   protocol.handle("private-attachment", (request) => {
+    requireEntered();
     const url = new URL(request.url);
     const filePath = store.resolveAttachment(decodeURIComponent(url.hostname || url.pathname.slice(1)));
     return net.fetch(pathToFileURL(filePath).toString());

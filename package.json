@@ -5,7 +5,7 @@
   "main": "src/main/main.js",
   "scripts": {
     "start": "NODE_OPTIONS= electron .",
-    "package:mac": "NODE_OPTIONS= electron-packager . \"i 人朋友圈\" --platform=darwin --arch=arm64 --out=release --overwrite --electron-version=30.5.1 --electron-zip-dir=.electron-download --app-version=0.1.0 --app-bundle-id=com.local.private-moments --app-category-type=public.app-category.productivity --icon=assets/icon --asar --ignore='^/release($|/)' --ignore='^/.npm-cache($|/)' --ignore='^/.electron-download($|/)' --ignore='^/tests($|/)' --ignore='^/scripts($|/)'",
+    "package:mac": "NODE_OPTIONS= electron-packager . \"i 人朋友圈\" --platform=darwin --arch=arm64 --out=release --overwrite --electron-version=30.5.1 --electron-zip-dir=.electron-download --app-version=0.1.0 --app-bundle-id=com.local.private-moments --app-category-type=public.app-category.productivity --icon=assets/icon --asar --ignore='^/release($|/)' --ignore='^/dist($|/)' --ignore='^/.npm-cache($|/)' --ignore='^/.electron-download($|/)' --ignore='^/tests($|/)' --ignore='^/scripts($|/)'",
     "smoke": "node scripts/smoke-test.js",
     "test": "node --test tests/*.test.js"
   },

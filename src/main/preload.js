@@ -3,11 +3,10 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("privateMoments", {
-  authStatus: () => ipcRenderer.invoke("auth:status"),
-  setPassword: (password) => ipcRenderer.invoke("auth:set-password", password),
-  unlock: (password) => ipcRenderer.invoke("auth:unlock", password),
+  enter: () => ipcRenderer.invoke("auth:enter"),
   lock: () => ipcRenderer.invoke("auth:lock"),
   chooseImages: () => ipcRenderer.invoke("images:choose"),
+  pasteImages: () => ipcRenderer.invoke("images:paste"),
   listRecords: (filters) => ipcRenderer.invoke("records:list", filters),
   createRecord: (input) => ipcRenderer.invoke("records:create", input),
   updateRecord: (id, input) => ipcRenderer.invoke("records:update", id, input),

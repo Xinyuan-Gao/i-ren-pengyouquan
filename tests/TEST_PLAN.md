@@ -6,12 +6,11 @@ Local private desktop journal app, similar to a personal-only QQ Zone / WeChat M
 
 ## Automated Priority
 
-1. First-run password setup
-   - Reports "no password set" on a fresh profile.
-   - Creates a password hash/salt without storing the raw password.
-   - Rejects wrong passwords.
-   - Unlocks successfully with the correct password.
-   - Persists auth state across app/storage reloads.
+1. First-run local entry
+   - Fresh profile creates storage without an auth file.
+   - Launch shows a single "进入朋友圈" entry button.
+   - Clicking the entry button opens the feed without password setup or validation.
+   - Existing records remain available after app/storage reloads.
 
 2. Entry CRUD
    - Creates an entry with text, mood, timestamp, and optional images.
@@ -36,7 +35,7 @@ Local private desktop journal app, similar to a personal-only QQ Zone / WeChat M
 5. JSON export
    - Exports valid JSON.
    - Includes entries, moods, timestamps, and attachment references.
-   - Does not include password hashes, salts, or secrets unless explicitly intended.
+   - Does not include auth files or secrets unless explicitly intended.
    - Export is readable after app/storage reload.
 
 6. Local privacy / offline behavior
@@ -48,16 +47,16 @@ Local private desktop journal app, similar to a personal-only QQ Zone / WeChat M
    - Records with text-only, image-only, and mixed content remain readable after a storage reload.
    - JSON export keeps all records, moods, tags, timestamps, and attachment references after reload.
    - Exported attachment references are app-owned filenames, not source image absolute paths.
-   - Export remains free of password hashes, salts, raw passwords, and unlock state.
+   - Export remains free of auth files and entry state.
 
 ## Manual Smoke Checks
 
 1. Launch packaged or dev Electron app with a fresh local profile.
-2. Set a password, quit, relaunch, verify wrong password fails and correct password unlocks.
+2. Click "进入朋友圈", quit, relaunch, and verify the same single-click entry flow.
 3. Create several entries with different moods and images.
 4. Edit one entry, delete another, relaunch, and verify persistence.
 5. Search text and filter by mood from the visible feed.
-6. Export JSON and inspect that it contains entries but no raw password or secrets.
+6. Export JSON and inspect that it contains entries but no auth data or secrets.
 7. Disconnect network and repeat create/search/export basics.
 
 ## Current Round UI / Feature Checks
@@ -86,15 +85,15 @@ Local private desktop journal app, similar to a personal-only QQ Zone / WeChat M
    - "Has image" returns only records with attachments, including image-only records.
    - No-result states are clear and do not hide the filter controls needed to recover.
 
-5. Lock screen and privacy hint
-   - Fresh profile shows the password setup screen and local-only privacy hint.
-   - Existing profile opens on the lock screen after app relaunch and blocks record list/create/export until unlock.
-   - Wrong password stays locked and shows an error; correct password unlocks and restores the feed.
-   - After locking or relaunching, media thumbnails and record text are not visible behind the lock screen.
-   - Export, image picker, and record IPC actions reject while locked.
+5. Entry screen and local privacy hint
+   - Fresh profile shows the single entry screen and local-only privacy hint.
+   - Existing profile opens on the entry screen after app relaunch.
+   - Clicking "进入朋友圈" restores the feed without password prompts or errors.
+   - After returning to the entry screen or relaunching, media thumbnails and record text are not visible behind it.
+   - Export, image picker, and record IPC actions reject before entering.
 
 ## Notes
 
 - Use temporary app data directories in tests so local user data is never touched.
-- Keep tests close to storage/auth/search modules; avoid broad Electron rewrites.
+- Keep tests close to storage/search modules; avoid broad Electron rewrites.
 - If implementation uses IPC, test handler functions directly when possible before adding renderer automation.

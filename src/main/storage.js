@@ -66,22 +66,9 @@ function sanitizeRecord(record) {
   };
 }
 
-function hashPassword(password, salt = crypto.randomBytes(16).toString("hex")) {
-  const hash = crypto.scryptSync(String(password), salt, 64).toString("hex");
-  return { salt, hash };
-}
-
-function verifyPassword(password, auth) {
-  if (!auth || !auth.salt || !auth.hash) return false;
-  const candidate = Buffer.from(hashPassword(password, auth.salt).hash, "hex");
-  const expected = Buffer.from(auth.hash, "hex");
-  return candidate.length === expected.length && crypto.timingSafeEqual(candidate, expected);
-}
-
 function createStore(baseDir) {
   const dataDir = path.join(baseDir, "private-moments");
   const attachmentsDir = path.join(dataDir, "attachments");
-  const authPath = path.join(dataDir, "auth.json");
   const recordsPath = path.join(dataDir, "records.json");
 
   function init() {
@@ -89,24 +76,6 @@ function createStore(baseDir) {
     if (!fs.existsSync(recordsPath)) {
       writeJson(recordsPath, { version: DATA_VERSION, records: [] });
     }
-  }
-
-  function getAuthStatus() {
-    init();
-    return { hasPassword: fs.existsSync(authPath) };
-  }
-
-  function setPassword(password) {
-    const value = String(password || "");
-    if (value.length < 4) {
-      throw new Error("密码至少需要 4 位");
-    }
-    writeJson(authPath, { ...hashPassword(value), createdAt: nowIso() });
-    return { ok: true };
-  }
-
-  function unlock(password) {
-    return { ok: verifyPassword(password, readJson(authPath, null)) };
   }
 
   function readRecords() {
@@ -268,11 +237,8 @@ function createStore(baseDir) {
   }
 
   return {
-    paths: { dataDir, attachmentsDir, authPath, recordsPath },
+    paths: { dataDir, attachmentsDir, recordsPath },
     init,
-    getAuthStatus,
-    setPassword,
-    unlock,
     listRecords,
     createRecord,
     updateRecord,
@@ -286,8 +252,6 @@ function createStore(baseDir) {
 
 module.exports = {
   createStore,
-  hashPassword,
-  verifyPassword,
   normalizeTags,
   normalizeMood
 };
