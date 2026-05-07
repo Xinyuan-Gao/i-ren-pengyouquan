@@ -95,11 +95,13 @@ html,
 body,
 #app {
   width: 100%;
+  height: 100%;
   min-height: 100%;
   margin: 0;
 }
 
 body {
+  overflow: hidden;
   background:
     radial-gradient(circle at 12% 8%, rgba(var(--accent-rgb), 0.08), transparent 24%),
     radial-gradient(circle at 84% 12%, rgba(204, 188, 162, 0.18), transparent 28%),
@@ -316,14 +318,19 @@ label span,
 
 .app-frame {
   display: grid;
-  grid-template-columns: 140px minmax(350px, 380px) minmax(620px, 1fr) minmax(300px, 330px);
-  min-height: 100vh;
+  grid-template-columns: 150px minmax(350px, 390px) minmax(560px, 1fr);
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .rail {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto 1fr;
   gap: 24px;
+  height: 100vh;
+  min-height: 0;
+  overflow: auto;
   border-right: 1px solid var(--line);
   padding: 34px 16px 28px;
 }
@@ -358,19 +365,14 @@ label span,
   white-space: nowrap;
 }
 
-.rail-nav,
-.rail-bottom {
+.rail-nav {
   display: grid;
   align-content: start;
-  gap: 16px;
+  gap: 12px;
 }
 
-.rail-bottom {
-  align-content: end;
-}
-
-.rail-nav button,
-.rail-bottom button {
+.rail-nav > button,
+.rail .theme-switcher button {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -383,7 +385,7 @@ label span,
   white-space: nowrap;
 }
 
-.rail-nav button span {
+.rail-nav > button span {
   display: grid;
   width: 24px;
   height: 24px;
@@ -392,12 +394,12 @@ label span,
   border-radius: 6px;
 }
 
-.rail-nav button.active {
+.rail-nav > button.active {
   background: var(--nav-active-bg);
   font-weight: 760;
 }
 
-.rail-nav button.active span {
+.rail-nav > button.active span {
   background: var(--green);
   border-color: var(--green);
   color: var(--active-fg);
@@ -407,13 +409,14 @@ label span,
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 6px;
+  margin: 10px 0 2px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--ghost-bg);
   padding: 7px;
 }
 
-.rail-bottom .theme-switcher button {
+.rail .theme-switcher button {
   display: grid;
   min-height: 28px;
   place-items: center;
@@ -464,17 +467,42 @@ label span,
 }
 
 .compose-column,
-.main-column,
-.inspector {
+.main-column {
   min-width: 0;
+  min-height: 0;
   padding: 52px 22px 34px;
 }
 
 .compose-column {
   display: grid;
   align-content: start;
-  gap: 18px;
+  gap: 14px;
+  height: 100vh;
+  overflow: auto;
   border-right: 1px solid var(--line);
+}
+
+.side-panel-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--ghost-bg);
+  padding: 6px;
+}
+
+.side-panel-tabs button {
+  min-height: 32px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 760;
+}
+
+.side-panel-tabs button.active {
+  background: var(--green);
+  color: var(--active-fg);
 }
 
 .composer,
@@ -591,8 +619,11 @@ label span,
 
 .main-column {
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   align-content: start;
   gap: 18px;
+  height: 100vh;
+  overflow: hidden;
   padding-left: 30px;
   padding-right: 22px;
 }
@@ -641,6 +672,8 @@ label span,
 
 .feed-surface {
   min-width: 0;
+  min-height: 0;
+  overflow: auto;
   cursor: grab;
   touch-action: pan-y;
 }
@@ -833,12 +866,6 @@ label span,
   35% {
     box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.16);
   }
-}
-
-.inspector {
-  display: grid;
-  align-content: start;
-  gap: 18px;
 }
 
 .search-box {
@@ -1092,20 +1119,58 @@ label span,
 
 @media (max-width: 1500px) {
   .app-frame {
-    grid-template-columns: 132px minmax(340px, 380px) minmax(560px, 1fr);
+    grid-template-columns: 150px minmax(350px, 390px) minmax(500px, 1fr);
+  }
+}
+
+@media (max-width: 1180px) {
+  .main-head {
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 10px;
   }
 
-  .inspector {
-    grid-column: 2 / 4;
-    grid-template-columns: 1fr 1fr;
-    padding-top: 18px;
+  .head-actions,
+  .top-tabs {
+    flex-wrap: wrap;
+  }
+
+  .top-tabs button {
+    min-width: 78px;
+  }
+}
+
+@media (max-height: 760px) and (min-width: 981px) {
+  .rail {
+    padding-top: 26px;
+    padding-bottom: 22px;
+  }
+
+  .compose-column,
+  .main-column {
+    padding-top: 36px;
+    padding-bottom: 24px;
+  }
+
+  .composer,
+  .today-card,
+  .inspector-card,
+  .week-card {
+    padding: 15px;
   }
 }
 
 @media (max-width: 980px) {
+  body {
+    overflow: auto;
+  }
+
   .app-frame,
   .auth-shell {
     grid-template-columns: 1fr;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
   }
 
   body.auth-mode .auth-shell {
@@ -1114,11 +1179,21 @@ label span,
 
   .rail,
   .compose-column {
+    height: auto;
+    overflow: visible;
     border-right: 0;
   }
 
-  .main-head,
-  .inspector {
+  .main-column {
+    height: auto;
+    overflow: visible;
+  }
+
+  .feed-surface {
+    overflow: visible;
+  }
+
+  .main-head {
     grid-template-columns: 1fr;
   }
 
