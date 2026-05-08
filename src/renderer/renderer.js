@@ -17,8 +17,9 @@ const TOP_VIEWS = ["timeline", "calendar", "month"];
 const SWIPE_VIEWS = ["timeline", "calendar", "month"];
 const THEME_OPTIONS = [
   { id: "warm", label: "暖砂" },
-  { id: "clean", label: "清白" },
-  { id: "airy", label: "疏影" },
+  { id: "moss", label: "林下" },
+  { id: "mist", label: "雾蓝" },
+  { id: "rose", label: "旧笺" },
   { id: "dark", label: "夜色" }
 ];
 
