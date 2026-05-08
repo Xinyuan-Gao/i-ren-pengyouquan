@@ -1,6 +1,6 @@
 "use strict";
 
-const { contextBridge, ipcRenderer } = require("electron");
+const { contextBridge, ipcRenderer, webUtils } = require("electron");
 
 contextBridge.exposeInMainWorld("privateMoments", {
   enter: () => ipcRenderer.invoke("auth:enter"),
@@ -15,5 +15,9 @@ contextBridge.exposeInMainWorld("privateMoments", {
   deleteRecord: (id) => ipcRenderer.invoke("records:delete", id),
   exportJson: () => ipcRenderer.invoke("records:export"),
   attachmentUrl: (filename) => `private-attachment://${encodeURIComponent(filename)}`,
-  localImageUrl: (filePath) => `file://${encodeURI(filePath)}`
+  localImageUrl: (filePath) => `file://${encodeURI(filePath)}`,
+  filePathFor: (file) => {
+    if (webUtils && typeof webUtils.getPathForFile === "function") return webUtils.getPathForFile(file);
+    return file && typeof file.path === "string" ? file.path : "";
+  }
 });
