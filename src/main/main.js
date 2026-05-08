@@ -3,7 +3,7 @@
 const { app, BrowserWindow, clipboard, dialog, ipcMain, protocol, net, screen } = require("electron");
 const fs = require("fs");
 const path = require("path");
-const { pathToFileURL } = require("url");
+const { fileURLToPath, pathToFileURL } = require("url");
 const { APP_NAME } = require("../shared/constants");
 const { createStore } = require("./storage");
 
@@ -19,6 +19,8 @@ const WINDOW_SIZE = {
   maxWidth: 1180,
   maxHeight: 820
 };
+
+const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".avif"]);
 
 function requireEntered() {
   if (!entered) throw new Error("请先进入朋友圈");
@@ -57,6 +59,31 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
 }
 
+function clipboardFilePaths() {
+  const paths = [];
+  if (process.platform === "darwin") {
+    const fileUrl = clipboard.read("public.file-url");
+    if (fileUrl) {
+      paths.push(...fileUrl
+        .split(/\r?\n/)
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .flatMap((value) => {
+          try {
+            return [fileURLToPath(value)];
+          } catch (_error) {
+            return [];
+          }
+        }));
+    }
+  }
+  if (process.platform === "win32") {
+    const raw = clipboard.read("FileNameW");
+    if (raw) paths.push(...raw.split(/\0+/).map((value) => value.trim()).filter(Boolean));
+  }
+  return paths.filter((filePath) => IMAGE_EXTENSIONS.has(path.extname(filePath).toLowerCase()));
+}
+
 function registerIpc() {
   ipcMain.handle("auth:enter", () => {
     entered = true;
@@ -78,6 +105,8 @@ function registerIpc() {
   });
   ipcMain.handle("images:paste", () => {
     requireEntered();
+    const filePaths = clipboardFilePaths();
+    if (filePaths.length) return filePaths.slice(0, 9);
     const image = clipboard.readImage();
     if (image.isEmpty()) return [];
     const pastedDir = path.join(app.getPath("temp"), "private-moments-pasted-images");

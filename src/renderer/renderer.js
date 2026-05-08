@@ -59,6 +59,7 @@ const state = {
   draftMood: "calm",
   draftLocation: "",
   sidePanel: "compose",
+  imageViewer: null,
   theme: "warm",
   backdrop: "glow",
   font: "system",
@@ -118,6 +119,19 @@ function imageName(filePath) {
   return String(filePath || "").split(/[\\/]/).filter(Boolean).pop() || "图片";
 }
 
+function isImageFile(file) {
+  return file && (String(file.type || "").startsWith("image/") || /\.(avif|bmp|gif|jpe?g|png|webp)$/i.test(file.name || ""));
+}
+
+function filePathFor(file) {
+  try {
+    if (api.filePathFor) return api.filePathFor(file);
+  } catch (_error) {
+    return "";
+  }
+  return file && typeof file.path === "string" ? file.path : "";
+}
+
 function escapeHtml(value) {
   return String(value || "")
     .replaceAll("&", "&amp;")
@@ -161,6 +175,10 @@ async function boot() {
   state.font = localStorage.getItem("privateMomentsFont") || "system";
   state.textSize = localStorage.getItem("privateMomentsTextSize") || "normal";
   applyAppearance();
+  document.addEventListener("keydown", handleGlobalKeydown);
+  document.addEventListener("paste", handleGlobalPaste);
+  document.addEventListener("dragover", handleGlobalDragOver);
+  document.addEventListener("drop", handleGlobalDrop);
   renderAuth();
 }
 
@@ -256,6 +274,7 @@ function renderApp() {
   `;
 
   bindAppEvents();
+  mountImageViewer();
   focusLocatedPost();
 }
 
@@ -388,18 +407,117 @@ function renderComposer() {
 }
 
 function renderImagePreview() {
+  return composerImageItems().map((item, index) => `
+      <div class="preview-tile">
+        <button class="preview-image-button" data-open-composer-image="${index}" type="button" title="查看图片">
+          <img alt="${item.saved ? "已保存图片" : "待发布图片"}" src="${escapeHtml(item.src)}">
+        </button>
+        <button class="preview-remove" ${item.saved ? `data-remove-kept="${escapeHtml(item.value)}"` : `data-remove-pending="${escapeHtml(item.value)}"`} type="button">移除</button>
+      </div>
+    `).join("");
+}
+
+function composerImageItems() {
   return [
-    ...state.keepAttachments.map((name) => `
-      <button class="preview-tile" data-remove-kept="${escapeHtml(name)}" type="button" title="点击移除">
-        <img alt="已保存图片" src="${api.attachmentUrl(name)}"><span>移除</span>
-      </button>
-    `),
-    ...state.pendingImages.map((filePath) => `
-      <button class="preview-tile" data-remove-pending="${escapeHtml(filePath)}" type="button" title="${escapeHtml(imageName(filePath))}">
-        <img alt="待发布图片" src="${api.localImageUrl(filePath)}"><span>移除</span>
-      </button>
-    `)
-  ].join("");
+    ...state.keepAttachments.map((name) => ({
+      src: api.attachmentUrl(name),
+      label: imageName(name),
+      saved: true,
+      value: name
+    })),
+    ...state.pendingImages.map((filePath) => ({
+      src: api.localImageUrl(filePath),
+      label: imageName(filePath),
+      saved: false,
+      value: filePath
+    }))
+  ];
+}
+
+function recordImageItems(record) {
+  return (record?.attachments || []).map((name) => ({
+    src: api.attachmentUrl(name),
+    label: imageName(name)
+  }));
+}
+
+function renderImageViewer() {
+  if (!state.imageViewer || !state.imageViewer.items.length) return "";
+  const { items, index } = state.imageViewer;
+  const item = items[index] || items[0];
+  const count = `${index + 1} / ${items.length}`;
+  return `
+    <div class="image-viewer" role="dialog" aria-modal="true" aria-label="查看图片">
+      <button class="image-viewer-backdrop" data-close-viewer type="button" aria-label="关闭图片查看"></button>
+      <div class="image-viewer-panel">
+        <header class="image-viewer-head">
+          <span>${count}</span>
+          <button class="ghost icon-button" data-close-viewer type="button" aria-label="关闭图片查看">×</button>
+        </header>
+        <img class="image-viewer-image" src="${escapeHtml(item.src)}" alt="${escapeHtml(item.label || "图片")}">
+        ${items.length > 1 ? `
+          <button class="image-viewer-nav prev" data-viewer-step="-1" type="button" aria-label="上一张">‹</button>
+          <button class="image-viewer-nav next" data-viewer-step="1" type="button" aria-label="下一张">›</button>
+        ` : ""}
+      </div>
+    </div>
+  `;
+}
+
+function mountImageViewer() {
+  document.querySelector(".image-viewer")?.remove();
+  if (!state.imageViewer) return;
+  document.body.insertAdjacentHTML("beforeend", renderImageViewer());
+  bindImageViewerEvents();
+}
+
+function openImageViewer(items, index = 0) {
+  if (!items.length) return;
+  state.imageViewer = {
+    items,
+    index: Math.max(0, Math.min(index, items.length - 1))
+  };
+  mountImageViewer();
+}
+
+function closeImageViewer() {
+  state.imageViewer = null;
+  document.querySelector(".image-viewer")?.remove();
+}
+
+function stepImageViewer(step) {
+  if (!state.imageViewer) return;
+  const total = state.imageViewer.items.length;
+  state.imageViewer.index = (state.imageViewer.index + step + total) % total;
+  mountImageViewer();
+}
+
+function bindImageViewerEvents() {
+  const viewer = document.querySelector(".image-viewer");
+  if (!viewer) return;
+  viewer.addEventListener("click", (event) => {
+    const close = event.target.closest("[data-close-viewer]");
+    const step = event.target.closest("[data-viewer-step]");
+    if (close) closeImageViewer();
+    if (step) stepImageViewer(Number(step.dataset.viewerStep));
+  });
+}
+
+function handleGlobalKeydown(event) {
+  if (!state.imageViewer) return;
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeImageViewer();
+    return;
+  }
+  if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    stepImageViewer(-1);
+  }
+  if (event.key === "ArrowRight") {
+    event.preventDefault();
+    stepImageViewer(1);
+  }
 }
 
 function renderTodayStatus() {
@@ -509,7 +627,11 @@ function renderPost(record) {
         ${record.text ? `<p class="post-text">${escapeHtml(record.text).replaceAll("\n", "<br>")}</p>` : ""}
         ${record.tags.length ? `<div class="tags">${record.tags.map((tag) => `<button data-tag="${escapeHtml(tag)}" type="button">${escapeHtml(tag)}</button>`).join("")}</div>` : ""}
         ${record.location ? `<p class="location-line">⌖ ${escapeHtml(record.location)}</p>` : ""}
-        ${record.attachments.length ? `<div class="gallery count-${Math.min(record.attachments.length, 9)}">${record.attachments.map((name) => `<img alt="记录图片" src="${api.attachmentUrl(name)}">`).join("")}</div>` : ""}
+        ${record.attachments.length ? `<div class="gallery count-${Math.min(record.attachments.length, 9)}">${record.attachments.map((name, index) => `
+          <button class="gallery-image" data-open-record="${escapeHtml(record.id)}" data-open-image="${index}" type="button" title="查看图片">
+            <img alt="记录图片" src="${api.attachmentUrl(name)}">
+          </button>
+        `).join("")}</div>` : ""}
         <div class="post-reactions">
           <button class="reaction-button like-button ${record.liked ? "liked" : ""}" data-like="${record.id}" type="button">
             <span>${record.liked ? "♥" : "♡"}</span>
@@ -775,14 +897,10 @@ function bindComposerEvents() {
     const paths = await run(() => api.chooseImages());
     addPendingImages(paths);
   });
-  document.querySelector(".composer").addEventListener("paste", async (event) => {
-    const items = Array.from(event.clipboardData?.items || []);
-    const hasImage = items.some((item) => item.type.startsWith("image/"));
-    if (!hasImage) return;
-    event.preventDefault();
-    const paths = await run(() => api.pasteImages(), "已粘贴图片");
-    addPendingImages(paths);
-  });
+  const composer = document.querySelector(".composer");
+  composer.addEventListener("paste", handlePasteImages);
+  composer.addEventListener("dragover", handleDragOverImages);
+  composer.addEventListener("drop", handleDropImages);
 
   document.querySelector("#save-record").addEventListener("click", saveRecord);
   const cancel = document.querySelector("#cancel-edit");
@@ -794,12 +912,87 @@ function bindComposerEvents() {
   });
 
   document.querySelector("#image-chips").addEventListener("click", (event) => {
+    const open = event.target.closest("[data-open-composer-image]");
     const kept = event.target.closest("[data-remove-kept]");
     const pending = event.target.closest("[data-remove-pending]");
+    if (open) {
+      openImageViewer(composerImageItems(), Number(open.dataset.openComposerImage));
+      return;
+    }
     if (kept) state.keepAttachments = state.keepAttachments.filter((name) => name !== kept.dataset.removeKept);
     if (pending) state.pendingImages = state.pendingImages.filter((filePath) => filePath !== pending.dataset.removePending);
     if (kept || pending) renderApp();
   });
+}
+
+function ensureComposerForImages() {
+  if (document.body.classList.contains("auth-mode")) return false;
+  if (state.sidePanel !== "compose" || !document.querySelector("#record-text")) {
+    state.sidePanel = "compose";
+    renderApp();
+  }
+  return Boolean(document.querySelector("#record-text"));
+}
+
+function imagePathsFromFiles(files) {
+  return Array.from(files || [])
+    .filter(isImageFile)
+    .map(filePathFor)
+    .filter(Boolean);
+}
+
+async function addImagePaths(paths, message) {
+  if (!paths.length) return false;
+  if (!ensureComposerForImages()) return false;
+  const added = addPendingImages(paths);
+  if (added && message) toast(message, "success");
+  return added;
+}
+
+async function handlePasteImages(event) {
+  const files = imagePathsFromFiles(event.clipboardData?.files);
+  const items = Array.from(event.clipboardData?.items || []);
+  const hasImage = files.length || items.some((item) => String(item.type || "").startsWith("image/"));
+  if (!hasImage) return;
+  event.preventDefault();
+  event.stopPropagation();
+  if (await addImagePaths(files, "已粘贴图片")) return;
+  const paths = await run(() => api.pasteImages());
+  await addImagePaths(paths || [], "已粘贴图片");
+}
+
+function handleDragOverImages(event) {
+  const files = Array.from(event.dataTransfer?.items || []);
+  if (!files.some((item) => item.kind === "file")) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "copy";
+}
+
+async function handleDropImages(event) {
+  const paths = imagePathsFromFiles(event.dataTransfer?.files);
+  if (!paths.length) return;
+  event.preventDefault();
+  event.stopPropagation();
+  await addImagePaths(paths, "已添加拖入图片");
+}
+
+async function handleGlobalPaste(event) {
+  if (document.body.classList.contains("auth-mode")) return;
+  if (state.imageViewer) return;
+  if (event.defaultPrevented) return;
+  await handlePasteImages(event);
+}
+
+function handleGlobalDragOver(event) {
+  if (document.body.classList.contains("auth-mode")) return;
+  if (state.imageViewer) return;
+  handleDragOverImages(event);
+}
+
+async function handleGlobalDrop(event) {
+  if (document.body.classList.contains("auth-mode")) return;
+  if (state.imageViewer) return;
+  await handleDropImages(event);
 }
 
 function syncDraftFromComposer() {
@@ -811,15 +1004,16 @@ function syncDraftFromComposer() {
 }
 
 function addPendingImages(paths) {
-  if (!paths || !paths.length) return;
+  if (!paths || !paths.length) return false;
   syncDraftFromComposer();
   const room = 9 - state.pendingImages.length - state.keepAttachments.length;
   if (room <= 0) {
     toast("最多添加 9 张图片", "error");
-    return;
+    return false;
   }
   state.pendingImages.push(...paths.slice(0, room));
   renderApp();
+  return true;
 }
 
 function bindFilterEvents() {
@@ -862,11 +1056,17 @@ function bindFilterEvents() {
 
 function bindContentEvents() {
   document.querySelector(".main-column").addEventListener("click", async (event) => {
+    const openImage = event.target.closest("[data-open-image]");
     const edit = event.target.closest("[data-edit]");
     const del = event.target.closest("[data-delete]");
     const favorite = event.target.closest("[data-favorite]");
     const like = event.target.closest("[data-like]");
     const tag = event.target.closest("[data-tag]");
+    if (openImage) {
+      const record = state.allRecords.find((item) => item.id === openImage.dataset.openRecord);
+      openImageViewer(recordImageItems(record), Number(openImage.dataset.openImage));
+      return;
+    }
     if (tag) {
       state.tag = tag.dataset.tag;
       await loadRecords();
@@ -1002,6 +1202,8 @@ function lockToAuth() {
   state.draftTags = "";
   state.draftMood = "calm";
   state.draftLocation = "";
+  state.imageViewer = null;
+  closeImageViewer();
   renderAuth();
 }
 

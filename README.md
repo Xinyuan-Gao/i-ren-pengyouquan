@@ -6,7 +6,15 @@
 
 ![登录封面](src/renderer/assets/logincover.png)
 
-![应用图标](src/renderer/assets/app-icon.png)
+<img src="src/renderer/assets/app-icon.png" alt="应用图标" width="512">
+
+### 日志界面
+
+![动态流](docs/images/log-timeline.png)
+
+![搜索筛选](docs/images/log-search.png)
+
+![日历回看](docs/images/log-calendar.png)
 
 ## 功能
 
