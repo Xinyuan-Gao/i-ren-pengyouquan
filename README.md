@@ -25,7 +25,8 @@
     <td width="50%" align="center">
       <strong>外观设置</strong><br>
       <sub>颜色、背景图案、字体和字号可以按当天的状态调整。</sub><br><br>
-      <img src="docs/images/log-appearance.png" alt="外观设置" width="100%">
+      <img src="docs/images/log-appearance-alt.png" alt="外观设置旧笺配色" width="49%">
+      <img src="docs/images/log-appearance.png" alt="外观设置另一种配色" width="49%">
     </td>
   </tr>
   <tr>
