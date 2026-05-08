@@ -1,26 +1,47 @@
 <div align="center">
-  <img src="src/renderer/assets/app-icon.png" alt="i 人朋友圈图标" width="112">
+  <img src="src/renderer/assets/app-icon.png" alt="i 人朋友圈图标" width="88">
   <h1>i 人朋友圈</h1>
-  <p><strong>一个只给自己看的本地私密朋友圈桌面应用</strong></p>
+  <p><strong>一个只给自己看的安静角落，用来存放那些不想发出去、但也不想弄丢的日常片刻。</strong></p>
+  <p>文字、图片、心情和回看都留在本机，不需要账号，也不需要把它交给任何人。</p>
   <p>
-    <img alt="platform" src="https://img.shields.io/badge/platform-macOS-555">
-    <img alt="runtime" src="https://img.shields.io/badge/built%20with-Electron-2f6651">
-    <img alt="storage" src="https://img.shields.io/badge/storage-local%20only-7a4b59">
-    <img alt="privacy" src="https://img.shields.io/badge/network-not%20required-376b72">
+    <img alt="macOS" src="https://img.shields.io/badge/macOS-desktop-555">
+    <img alt="local only" src="https://img.shields.io/badge/local-only-2f6651">
+    <img alt="no account" src="https://img.shields.io/badge/no-account-7a4b59">
+    <img alt="paste images" src="https://img.shields.io/badge/paste-images-376b72">
   </p>
 </div>
 
 ---
 
-## 界面预览
+## 界面概览
 
-| 动态流 | 外观设置 |
-| --- | --- |
-| ![动态流](docs/images/log-timeline.png) | ![外观设置](docs/images/log-appearance.png) |
-
-| 搜索筛选 | 日历回看 |
-| --- | --- |
-| ![搜索筛选](docs/images/log-search.png) | ![日历回看](docs/images/log-calendar.png) |
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <strong>动态流</strong><br>
+      <sub>文字、图片、心情和位置都留在一条自己的时间线里。</sub><br><br>
+      <img src="docs/images/log-timeline.png" alt="动态流" width="100%">
+    </td>
+    <td width="50%" align="center">
+      <strong>外观设置</strong><br>
+      <sub>颜色、背景图案、字体和字号可以按当天的状态调整。</sub><br><br>
+      <img src="docs/images/log-appearance-alt.png" alt="外观设置旧笺配色" width="49%">
+      <img src="docs/images/log-appearance.png" alt="外观设置另一种配色" width="49%">
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <strong>搜索筛选</strong><br>
+      <sub>按关键词、心情、标签和日期，把过去的某一刻找回来。</sub><br><br>
+      <img src="docs/images/log-search.png" alt="搜索筛选" width="100%">
+    </td>
+    <td width="50%" align="center">
+      <strong>日历回看</strong><br>
+      <sub>用月份和日期回看生活的密度，也能快速跳回当天记录。</sub><br><br>
+      <img src="docs/images/log-calendar.png" alt="日历回看" width="100%">
+    </td>
+  </tr>
+</table>
 
 <details>
 <summary>入口封面</summary>
