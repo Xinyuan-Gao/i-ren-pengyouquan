@@ -181,6 +181,9 @@ async function main() {
   await click(win, '[data-side-panel="search"]');
   await screenshot(win, "log-search.png");
 
+  await click(win, '[data-side-panel="appearance"]');
+  await screenshot(win, "log-appearance.png");
+
   await click(win, '[data-nav-view="calendar"]');
   await screenshot(win, "log-calendar.png");
 
