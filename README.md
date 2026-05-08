@@ -79,17 +79,22 @@ npm test
 npm run smoke
 ```
 
-## 打包 macOS App
+## 打包安装包
 
 ```bash
 npm run package:mac
+npm run package:win
 ```
 
-打包结果会生成在：
+打包结果会生成在 `release/`：
 
 ```text
-release/i 人朋友圈-darwin-arm64/i 人朋友圈.app
+macOS:   i 人朋友圈-0.1.0-arm64.dmg / i 人朋友圈-0.1.0-arm64.pkg
+Windows: i 人朋友圈-0.1.0-x64.msi
 ```
+
+如果只需要旧的 macOS `.app` 目录，可以运行 `npm run package:mac:app`。
+Windows MSI 需要在 Windows 环境构建；macOS 本机可以用 `npm run package:win:dir` 做 Windows 解包版配置检查。
 
 ## 目录
 
