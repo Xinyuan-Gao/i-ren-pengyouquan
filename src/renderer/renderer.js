@@ -22,6 +22,22 @@ const THEME_OPTIONS = [
   { id: "rose", label: "旧笺" },
   { id: "dark", label: "夜色" }
 ];
+const BACKDROP_OPTIONS = [
+  { id: "glow", label: "柔光" },
+  { id: "grid", label: "方格线" },
+  { id: "shade", label: "树影" },
+  { id: "paper", label: "纸纹" }
+];
+const FONT_OPTIONS = [
+  { id: "system", label: "系统" },
+  { id: "serif", label: "宋体" },
+  { id: "rounded", label: "圆体" }
+];
+const TEXT_SIZE_OPTIONS = [
+  { id: "small", label: "小" },
+  { id: "normal", label: "标准" },
+  { id: "large", label: "大" }
+];
 
 const state = {
   records: [],
@@ -44,6 +60,9 @@ const state = {
   draftLocation: "",
   sidePanel: "compose",
   theme: "warm",
+  backdrop: "glow",
+  font: "system",
+  textSize: "normal",
   busy: false
 };
 
@@ -138,13 +157,26 @@ async function run(action, successMessage) {
 async function boot() {
   document.title = APP_NAME;
   state.theme = localStorage.getItem("privateMomentsTheme") || "warm";
-  applyTheme();
+  state.backdrop = localStorage.getItem("privateMomentsBackdrop") || "glow";
+  state.font = localStorage.getItem("privateMomentsFont") || "system";
+  state.textSize = localStorage.getItem("privateMomentsTextSize") || "normal";
+  applyAppearance();
   renderAuth();
 }
 
-function applyTheme() {
+function validOption(options, id, fallback) {
+  return options.some((option) => option.id === id) ? id : fallback;
+}
+
+function applyAppearance() {
   document.body.dataset.theme = THEME_OPTIONS.some((theme) => theme.id === state.theme) ? state.theme : "warm";
+  document.body.dataset.backdrop = validOption(BACKDROP_OPTIONS, state.backdrop, "glow");
+  document.body.dataset.font = validOption(FONT_OPTIONS, state.font, "system");
+  document.body.dataset.textSize = validOption(TEXT_SIZE_OPTIONS, state.textSize, "normal");
   localStorage.setItem("privateMomentsTheme", document.body.dataset.theme);
+  localStorage.setItem("privateMomentsBackdrop", document.body.dataset.backdrop);
+  localStorage.setItem("privateMomentsFont", document.body.dataset.font);
+  localStorage.setItem("privateMomentsTextSize", document.body.dataset.textSize);
 }
 
 function renderAuth() {
@@ -243,25 +275,11 @@ function renderRail() {
         ${renderNavButton("month", "◱", "月份回看")}
         ${renderNavButton("favorites", "☆", "收藏")}
         ${renderNavButton("memories", "◷", "回顾")}
-        ${renderThemeSwitcher()}
         <button data-export type="button">⇩ 导出</button>
         <button id="lock-app" type="button">⌂ 回到入口</button>
-        <button id="settings-button" type="button">⚙ 设置</button>
+        <button id="settings-button" type="button">⚙ 外观</button>
       </nav>
     </aside>
-  `;
-}
-
-function renderThemeSwitcher() {
-  return `
-    <div class="theme-switcher" aria-label="颜色风格">
-      ${THEME_OPTIONS.map((theme) => `
-        <button class="${state.theme === theme.id ? "active" : ""}" data-theme-choice="${theme.id}" type="button" title="${theme.label}">
-          <span></span>
-          <em>${theme.label}</em>
-        </button>
-      `).join("")}
-    </div>
   `;
 }
 
@@ -273,7 +291,8 @@ function renderSidePanel() {
   const tabs = [
     { id: "compose", label: "写下" },
     { id: "search", label: "搜索" },
-    { id: "review", label: "回顾" }
+    { id: "review", label: "回顾" },
+    { id: "appearance", label: "外观" }
   ];
   return `
     <div class="side-panel-tabs" aria-label="侧栏工具">
@@ -284,6 +303,37 @@ function renderSidePanel() {
     ${state.sidePanel === "compose" ? `${renderComposer()}${renderTodayStatus()}` : ""}
     ${state.sidePanel === "search" ? renderInspector() : ""}
     ${state.sidePanel === "review" ? renderWeekReview() : ""}
+    ${state.sidePanel === "appearance" ? renderAppearancePanel() : ""}
+  `;
+}
+
+function renderAppearancePanel() {
+  return `
+    <section class="appearance-panel design-card">
+      <div class="section-title">
+        <h2>外观</h2>
+      </div>
+      ${renderAppearanceGroup("颜色风格", THEME_OPTIONS, state.theme, "theme")}
+      ${renderAppearanceGroup("背景图案", BACKDROP_OPTIONS, state.backdrop, "backdrop")}
+      ${renderAppearanceGroup("字体", FONT_OPTIONS, state.font, "font")}
+      ${renderAppearanceGroup("字号", TEXT_SIZE_OPTIONS, state.textSize, "text-size")}
+    </section>
+  `;
+}
+
+function renderAppearanceGroup(title, options, active, kind) {
+  return `
+    <div class="appearance-group">
+      <h3>${title}</h3>
+      <div class="appearance-options">
+        ${options.map((option) => `
+          <button class="${active === option.id ? "active" : ""}" data-appearance-${kind}="${option.id}" type="button">
+            <span class="appearance-swatch ${kind}-${option.id}"></span>
+            ${option.label}
+          </button>
+        `).join("")}
+      </div>
+    </div>
   `;
 }
 
@@ -648,14 +698,8 @@ function bindAppEvents() {
     lockToAuth();
   });
   document.querySelector("#settings-button").addEventListener("click", () => {
-    toast("设置页会放在下一版，这一版先保留本地私密与导出。");
-  });
-  document.querySelectorAll("[data-theme-choice]").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.theme = button.dataset.themeChoice;
-      applyTheme();
-      renderApp();
-    });
+    state.sidePanel = "appearance";
+    renderApp();
   });
 
   document.querySelectorAll("[data-nav-view]").forEach((button) => {
@@ -668,6 +712,34 @@ function bindAppEvents() {
   document.querySelectorAll("[data-side-panel]").forEach((button) => {
     button.addEventListener("click", () => {
       state.sidePanel = button.dataset.sidePanel;
+      renderApp();
+    });
+  });
+  document.querySelectorAll("[data-appearance-theme]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.theme = button.dataset.appearanceTheme;
+      applyAppearance();
+      renderApp();
+    });
+  });
+  document.querySelectorAll("[data-appearance-backdrop]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.backdrop = button.dataset.appearanceBackdrop;
+      applyAppearance();
+      renderApp();
+    });
+  });
+  document.querySelectorAll("[data-appearance-font]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.font = button.dataset.appearanceFont;
+      applyAppearance();
+      renderApp();
+    });
+  });
+  document.querySelectorAll("[data-appearance-text-size]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.textSize = button.dataset.appearanceTextSize;
+      applyAppearance();
       renderApp();
     });
   });

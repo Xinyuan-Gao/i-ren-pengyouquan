@@ -126,39 +126,65 @@ body,
 
 body {
   overflow: hidden;
-  background:
-    radial-gradient(circle at 12% 8%, rgba(var(--accent-rgb), 0.08), transparent 24%),
-    radial-gradient(circle at 84% 12%, rgba(204, 188, 162, 0.18), transparent 28%),
-    var(--bg);
+  background: var(--bg);
   color: var(--ink);
   font-size: 14px;
 }
 
-body[data-theme="moss"] {
+body[data-backdrop="glow"] {
   background:
-    radial-gradient(circle at 16% 4%, rgba(var(--accent-rgb), 0.08), transparent 28%),
+    radial-gradient(circle at 12% 8%, rgba(var(--accent-rgb), 0.08), transparent 24%),
+    radial-gradient(circle at 84% 12%, rgba(204, 188, 162, 0.18), transparent 28%),
     var(--bg);
 }
 
-body[data-theme="mist"] {
+body[data-backdrop="grid"] {
   background:
     linear-gradient(90deg, rgba(var(--accent-rgb), 0.042) 0 1px, transparent 1px 100%),
+    linear-gradient(0deg, rgba(var(--accent-rgb), 0.036) 0 1px, transparent 1px 100%),
     var(--bg);
-  background-size: 168px 100%;
+  background-size: 30px 30px, 30px 30px, auto;
 }
 
-body[data-theme="rose"] {
+body[data-backdrop="shade"] {
   background:
-    radial-gradient(circle at 80% 10%, rgba(var(--accent-rgb), 0.07), transparent 30%),
+    radial-gradient(ellipse at 18% 12%, rgba(var(--accent-rgb), 0.10), transparent 28%),
+    linear-gradient(118deg, transparent 0 18%, rgba(var(--accent-rgb), 0.045) 18% 21%, transparent 21% 42%, rgba(var(--accent-rgb), 0.038) 42% 45%, transparent 45%),
     var(--bg);
 }
 
-body[data-theme="dark"] {
+body[data-backdrop="paper"] {
+  background:
+    linear-gradient(0deg, rgba(var(--accent-rgb), 0.035) 0 1px, transparent 1px 28px),
+    radial-gradient(circle at 18% 2%, rgba(var(--accent-rgb), 0.06), transparent 24%),
+    var(--bg);
+  background-size: auto, auto, auto;
+}
+
+body[data-theme="dark"][data-backdrop="glow"] {
   background:
     radial-gradient(circle at 18% 2%, rgba(var(--accent-rgb), 0.16), transparent 24%),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 100%),
     var(--bg);
-  background-size: auto, 168px 100%, auto;
+}
+
+body[data-font="system"] {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+body[data-font="serif"] {
+  font-family: "Songti SC", "STSong", "Noto Serif CJK SC", "Times New Roman", serif;
+}
+
+body[data-font="rounded"] {
+  font-family: "Hiragino Maru Gothic ProN", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+body[data-text-size="small"] {
+  font-size: 13px;
+}
+
+body[data-text-size="large"] {
+  font-size: 15px;
 }
 
 body.auth-mode,
@@ -402,8 +428,7 @@ label span,
   gap: 12px;
 }
 
-.rail-nav > button,
-.rail .theme-switcher button {
+.rail-nav > button {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -436,71 +461,6 @@ label span,
   color: var(--active-fg);
 }
 
-.theme-switcher {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(22px, 1fr));
-  gap: 6px;
-  margin: 10px 0 2px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--ghost-bg);
-  padding: 7px;
-}
-
-.rail .theme-switcher button {
-  display: grid;
-  min-height: 28px;
-  place-items: center;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--muted);
-  padding: 0;
-}
-
-.theme-switcher button span {
-  width: 14px;
-  height: 14px;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-}
-
-.theme-switcher button em {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-.theme-switcher button.active {
-  border-color: color-mix(in srgb, var(--green) 42%, transparent);
-  background: var(--nav-active-bg);
-  color: var(--ink);
-}
-
-.theme-switcher [data-theme-choice="warm"] span {
-  background: linear-gradient(135deg, #f5ecdb 0 50%, #0d5d4e 50% 100%);
-}
-
-.theme-switcher [data-theme-choice="moss"] span {
-  background: linear-gradient(135deg, #f3f6f1 0 50%, #2f6651 50% 100%);
-}
-
-.theme-switcher [data-theme-choice="mist"] span {
-  background: linear-gradient(135deg, #f4f7f8 0 50%, #376b72 50% 100%);
-}
-
-.theme-switcher [data-theme-choice="rose"] span {
-  background: linear-gradient(135deg, #f8f3f2 0 50%, #7a4b59 50% 100%);
-}
-
-.theme-switcher [data-theme-choice="dark"] span {
-  background: linear-gradient(135deg, #10120f 0 50%, #66806f 50% 100%);
-}
-
 .compose-column,
 .main-column {
   min-width: 0;
@@ -519,7 +479,7 @@ label span,
 
 .side-panel-tabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(68px, 1fr));
   gap: 6px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -538,6 +498,106 @@ label span,
 .side-panel-tabs button.active {
   background: var(--green);
   color: var(--active-fg);
+}
+
+.appearance-panel {
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+}
+
+.appearance-group {
+  display: grid;
+  gap: 10px;
+}
+
+.appearance-group h3 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.appearance-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.appearance-options button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--ghost-bg);
+  color: var(--ink);
+  padding: 0 10px;
+}
+
+.appearance-options button.active {
+  border-color: color-mix(in srgb, var(--green) 42%, transparent);
+  background: var(--nav-active-bg);
+  font-weight: 760;
+}
+
+.appearance-swatch {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.theme-warm {
+  background: linear-gradient(135deg, #f5ecdb 0 50%, #0d5d4e 50% 100%);
+}
+
+.theme-moss {
+  background: linear-gradient(135deg, #f3f6f1 0 50%, #2f6651 50% 100%);
+}
+
+.theme-mist {
+  background: linear-gradient(135deg, #f4f7f8 0 50%, #376b72 50% 100%);
+}
+
+.theme-rose {
+  background: linear-gradient(135deg, #f8f3f2 0 50%, #7a4b59 50% 100%);
+}
+
+.theme-dark {
+  background: linear-gradient(135deg, #10120f 0 50%, #66806f 50% 100%);
+}
+
+.backdrop-glow {
+  background: radial-gradient(circle at 35% 35%, rgba(var(--accent-rgb), 0.62), transparent 42%), var(--paper);
+}
+
+.backdrop-grid {
+  background:
+    linear-gradient(90deg, rgba(var(--accent-rgb), 0.36) 0 1px, transparent 1px 100%),
+    linear-gradient(0deg, rgba(var(--accent-rgb), 0.28) 0 1px, transparent 1px 100%),
+    var(--paper);
+  background-size: 8px 8px;
+}
+
+.backdrop-shade {
+  background: linear-gradient(125deg, transparent 0 38%, rgba(var(--accent-rgb), 0.46) 38% 45%, transparent 45%), var(--paper);
+}
+
+.backdrop-paper {
+  background:
+    linear-gradient(0deg, rgba(var(--accent-rgb), 0.26) 0 1px, transparent 1px 8px),
+    var(--paper);
+}
+
+.font-system,
+.font-serif,
+.font-rounded,
+.text-size-small,
+.text-size-normal,
+.text-size-large {
+  background: var(--paper);
 }
 
 .composer,
