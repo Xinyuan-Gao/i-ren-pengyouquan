@@ -5,7 +5,14 @@
   "main": "src/main/main.js",
   "scripts": {
     "start": "NODE_OPTIONS= electron .",
-    "package:mac": "NODE_OPTIONS= electron-packager . \"i 人朋友圈\" --platform=darwin --arch=arm64 --out=release --overwrite --electron-version=30.5.1 --electron-zip-dir=.electron-download --app-version=0.1.0 --app-bundle-id=com.local.private-moments --app-category-type=public.app-category.productivity --icon=assets/icon --asar --ignore='^/release($|/)' --ignore='^/dist($|/)' --ignore='^/.npm-cache($|/)' --ignore='^/.electron-download($|/)' --ignore='^/tests($|/)' --ignore='^/scripts($|/)'",
+    "package:mac:app": "NODE_OPTIONS= electron-packager . \"i 人朋友圈\" --platform=darwin --arch=arm64 --out=release --overwrite --electron-version=30.5.1 --electron-zip-dir=.electron-download --app-version=0.1.0 --app-bundle-id=com.local.private-moments --app-category-type=public.app-category.productivity --icon=assets/icon --asar --ignore='^/release($|/)' --ignore='^/dist($|/)' --ignore='^/.npm-cache($|/)' --ignore='^/.electron-download($|/)' --ignore='^/tests($|/)' --ignore='^/scripts($|/)'",
+    "package:mac": "electron-builder --mac dmg pkg --arm64 --publish never",
+    "package:mac:dmg": "electron-builder --mac dmg --arm64 --publish never",
+    "package:mac:pkg": "electron-builder --mac pkg --arm64 --publish never",
+    "package:win": "electron-builder --win msi --x64 --publish never",
+    "package:win:msi": "electron-builder --win msi --x64 --publish never",
+    "package:win:nsis": "electron-builder --win nsis --x64 --publish never",
+    "package:win:dir": "electron-builder --win --x64 --dir --publish never",
     "smoke": "node scripts/smoke-test.js",
     "test": "node --test tests/*.test.js"
   },
@@ -14,10 +21,74 @@
     "diary",
     "timeline"
   ],
-  "author": "",
+  "author": "Xinyuan-Gao",
   "license": "MIT",
+  "build": {
+    "appId": "com.local.private-moments",
+    "productName": "i 人朋友圈",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json",
+      "!**/.DS_Store",
+      "!docs/**/*",
+      "!tests/**/*",
+      "!scripts/**/*",
+      "!release/**/*",
+      "!dist/**/*",
+      "!.npm-cache/**/*",
+      "!.electron-download/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "assets/icon.icns",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        },
+        {
+          "target": "pkg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "dmg": {
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "pkg": {
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "win": {
+      "icon": "assets/icon.png",
+      "target": [
+        {
+          "target": "msi",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "msi": {
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
+      "oneClick": true
+    }
+  },
   "devDependencies": {
     "@electron/packager": "^20.0.0",
-    "electron": "^30.5.1"
+    "electron": "^30.5.1",
+    "electron-builder": "^26.8.1"
   }
 }
