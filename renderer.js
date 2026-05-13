@@ -54,10 +54,7 @@ const state = {
   sidePanel: "compose",
   imageViewer: null,
   ...DEFAULT_APPEARANCE,
-  busy: false,
-  entered: false,
-  sessionToken: 0,
-  shouldFocusComposer: false
+  busy: false
 };
 
 const app = document.querySelector("#app");
@@ -120,16 +117,6 @@ function isTextEntryTarget(target) {
   return Boolean(target?.closest?.("input, textarea, select, [contenteditable='true']"));
 }
 
-function isEditableTextTarget(target) {
-  const node = target?.closest?.("textarea, input, [contenteditable='true']");
-  if (!node) return false;
-  if (node.matches?.("[contenteditable='true']")) return true;
-  if (node.disabled || node.readOnly) return false;
-  if (node.tagName === "TEXTAREA") return true;
-  const type = String(node.type || "text").toLowerCase();
-  return !["button", "checkbox", "color", "file", "hidden", "image", "radio", "range", "reset", "submit"].includes(type);
-}
-
 function filePathFor(file) {
   try {
     if (api.filePathFor) return api.filePathFor(file);
@@ -137,10 +124,6 @@ function filePathFor(file) {
     return "";
   }
   return file && typeof file.path === "string" ? file.path : "";
-}
-
-function thumbnailUrlFor(filename) {
-  return api.thumbnailUrl ? api.thumbnailUrl(filename) : api.attachmentUrl(filename);
 }
 
 function escapeHtml(value) {
@@ -163,21 +146,6 @@ function toast(message, tone = "info") {
 function setBusy(value) {
   state.busy = value;
   document.body.classList.toggle("is-busy", value);
-}
-
-function beginSession() {
-  state.entered = true;
-  state.sessionToken += 1;
-  return state.sessionToken;
-}
-
-function endSession() {
-  state.entered = false;
-  state.sessionToken += 1;
-}
-
-function isCurrentSession(token) {
-  return state.entered && token === state.sessionToken;
 }
 
 async function run(action, successMessage) {
@@ -270,19 +238,15 @@ function applyAppearance() {
   document.body.dataset.backdrop = state.backgroundType === "solid" ? "solid" : state.backdrop;
   document.body.dataset.backgroundType = state.backgroundType;
   document.body.dataset.backgroundStrength = String(state.backgroundStrength);
-  document.body.dataset.backgroundStrengthLevel = String(backgroundStrengthLevel(state.backgroundStrength));
   document.body.dataset.font = state.font;
   document.body.dataset.feedStyle = state.feedStyle;
   document.body.dataset.feedDensity = state.feedDensity;
   document.body.dataset.contentSize = state.contentTextSize;
   document.body.dataset.contentLineHeight = state.contentLineHeight;
   document.body.dataset.interfaceScale = String(state.interfaceScale);
+  document.body.style.setProperty("--ui-scale", String(state.interfaceScale / 100));
+  document.body.style.setProperty("--backdrop-alpha", String(state.backgroundStrength / 100));
   appearanceModel.writeAppearance(localStorage, state);
-}
-
-function backgroundStrengthLevel(value) {
-  const number = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
-  return Math.round(number / 5) * 5;
 }
 
 function renderAuth() {
@@ -296,10 +260,7 @@ function renderAuth() {
   const enterApp = async () => {
     const result = await run(() => api.enter());
     if (!result || !result.ok) return;
-    const token = beginSession();
-    state.shouldFocusComposer = true;
-    await loadRecords(token);
-    if (!isCurrentSession(token)) return;
+    await loadRecords();
     renderApp();
   };
 
@@ -313,7 +274,7 @@ function renderAuth() {
   });
 }
 
-async function loadRecords(sessionToken = state.sessionToken) {
+async function loadRecords() {
   const [records, allRecords] = await Promise.all([
     run(() => api.listRecords({
       query: state.query,
@@ -325,10 +286,8 @@ async function loadRecords(sessionToken = state.sessionToken) {
     })),
     run(() => api.listRecords({}))
   ]);
-  if (!isCurrentSession(sessionToken)) return false;
   state.records = Array.isArray(records) ? records : [];
   state.allRecords = Array.isArray(allRecords) ? allRecords : [];
-  return true;
 }
 
 function allTags() {
@@ -369,20 +328,6 @@ function renderApp() {
   bindAppEvents();
   mountImageViewer();
   focusLocatedPost();
-  if (state.shouldFocusComposer) focusPrimaryComposerInput();
-}
-
-function focusPrimaryComposerInput() {
-  if (state.sidePanel !== "compose") return;
-  const input = document.querySelector("[data-primary-composer-input='true']");
-  if (!input) return;
-  state.shouldFocusComposer = false;
-  const active = document.activeElement;
-  if (active && active !== document.body && active !== input && isTextEntryTarget(active)) return;
-  window.requestAnimationFrame(() => {
-    if (!document.body.contains(input)) return;
-    input.focus({ preventScroll: true });
-  });
 }
 
 function renderRail() {
@@ -575,7 +520,7 @@ function renderComposer() {
         ${state.editing ? '<button class="text-button" id="cancel-edit" type="button">取消</button>' : ""}
       </div>
       <div class="text-shell">
-        <textarea id="record-text" data-primary-composer-input="true" autofocus maxlength="500" rows="6" placeholder="今天想留给自己的是什么？">${escapeHtml(text)}</textarea>
+        <textarea id="record-text" maxlength="500" rows="6" placeholder="今天想留给自己的是什么？" inputmode="text">${escapeHtml(text)}</textarea>
         <span id="char-count">${text.length}/500</span>
       </div>
       <div class="field-row">
@@ -616,7 +561,7 @@ function renderImagePreview() {
   return composerImageItems().map((item, index) => `
       <div class="preview-tile">
         <button class="preview-image-button" data-open-composer-image="${index}" type="button" title="查看图片">
-          <img alt="${item.saved ? "已保存图片" : "待发布图片"}" src="${escapeHtml(item.previewSrc || item.src)}" loading="lazy" decoding="async">
+          <img alt="${item.saved ? "已保存图片" : "待发布图片"}" src="${escapeHtml(item.src)}">
         </button>
         <button class="preview-remove" ${item.saved ? `data-remove-kept="${escapeHtml(item.value)}"` : `data-remove-pending="${escapeHtml(item.value)}"`} type="button">移除</button>
       </div>
@@ -627,14 +572,12 @@ function composerImageItems() {
   return [
     ...state.keepAttachments.map((name) => ({
       src: api.attachmentUrl(name),
-      previewSrc: thumbnailUrlFor(name),
       label: imageName(name),
       saved: true,
       value: name
     })),
     ...state.pendingImages.map((filePath) => ({
       src: api.localImageUrl(filePath),
-      previewSrc: api.localImageUrl(filePath),
       label: imageName(filePath),
       saved: false,
       value: filePath
@@ -807,8 +750,7 @@ function groupByDay(records) {
   const grouped = new Map();
   records.forEach((record) => {
     const key = toDateKey(record.createdAt);
-    if (!grouped.has(key)) grouped.set(key, []);
-    grouped.get(key).push(record);
+    grouped.set(key, [...(grouped.get(key) || []), record]);
   });
   return [...grouped.entries()].sort((a, b) => b[0].localeCompare(a[0]));
 }
@@ -830,7 +772,7 @@ function renderPost(record) {
           <div><strong>${PROFILE.name}</strong><span>${PROFILE.note} · ${formatTime(record.createdAt)}</span></div>
         </div>
         <header class="post-head">
-          <span class="mood mood-${mood.id}">${mood.icon} ${mood.label}</span>
+          <span class="mood" style="--mood:${mood.color}">${mood.icon} ${mood.label}</span>
           <div class="post-actions">
             <button class="text-button ${record.favorite ? "favorited" : ""}" data-favorite="${record.id}" type="button">${record.favorite ? "★ 已收藏" : "☆ 收藏"}</button>
             <button class="text-button" data-edit="${record.id}" type="button">✎ 编辑</button>
@@ -842,7 +784,7 @@ function renderPost(record) {
         ${record.location ? `<p class="location-line">⌖ ${escapeHtml(record.location)}</p>` : ""}
         ${record.attachments.length ? `<div class="gallery count-${Math.min(record.attachments.length, 9)}">${record.attachments.map((name, index) => `
           <button class="gallery-image" data-open-record="${escapeHtml(record.id)}" data-open-image="${index}" type="button" title="查看图片">
-            <img alt="记录图片" src="${thumbnailUrlFor(name)}" loading="lazy" decoding="async">
+            <img alt="记录图片" src="${api.attachmentUrl(name)}">
           </button>
         `).join("")}</div>` : ""}
         <div class="post-reactions">
@@ -935,7 +877,7 @@ function renderWeekReview() {
         <div><dt>照片数量</dt><dd>${stats.photoCount} 张</dd></div>
       </dl>
       <div class="bar-chart">
-        ${stats.dayCounts.map((count, index) => `<span class="bar-level-${Math.max(1, Math.round((count / max) * 10))}"><i>${["一", "二", "三", "四", "五", "六", "日"][index]}</i></span>`).join("")}
+        ${stats.dayCounts.map((count, index) => `<span style="height:${Math.max(8, (count / max) * 86)}%"><i>${["一", "二", "三", "四", "五", "六", "日"][index]}</i></span>`).join("")}
       </div>
     </section>
   `;
@@ -1039,7 +981,6 @@ function bindAppEvents() {
   });
 
   document.querySelector("#lock-app").addEventListener("click", async () => {
-    endSession();
     await run(() => api.lock());
     lockToAuth();
   });
@@ -1053,9 +994,7 @@ function bindAppEvents() {
     button.addEventListener("click", async () => {
       syncActiveInputs();
       state.view = button.dataset.navView;
-      const token = state.sessionToken;
-      const loaded = await loadRecords(token);
-      if (!loaded) return;
+      await loadRecords();
       renderApp();
     });
   });
@@ -1126,6 +1065,7 @@ function bindAppEvents() {
   bindComposerEvents();
   bindFilterEvents();
   bindContentEvents();
+  bindGalleryImageEvents();
   bindSwipeNavigation();
 }
 
@@ -1140,7 +1080,6 @@ function bindComposerEvents() {
     charCount.textContent = `${text.value.length}/500`;
     syncComposerState();
   });
-  text.addEventListener("keydown", handleComposerPasteShortcut);
   mood.addEventListener("change", () => {
     syncComposerState();
   });
@@ -1152,16 +1091,10 @@ function bindComposerEvents() {
   });
 
   document.querySelector("#choose-images").addEventListener("click", async () => {
-    const token = state.sessionToken;
     const paths = await run(() => api.chooseImages());
-    if (!isCurrentSession(token)) return;
     addPendingImages(paths);
   });
   const composer = document.querySelector(".composer");
-  composer.addEventListener("click", (event) => {
-    if (isTextEntryTarget(event.target) || event.target.closest("button")) return;
-    focusPrimaryComposerInput();
-  });
   composer.addEventListener("paste", handlePasteImages);
   composer.addEventListener("dragover", handleDragOverImages);
   composer.addEventListener("drop", handleDropImages);
@@ -1192,6 +1125,17 @@ function bindComposerEvents() {
   });
 }
 
+function bindGalleryImageEvents() {
+  document.querySelectorAll("[data-open-image]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const record = state.allRecords.find((item) => item.id === button.dataset.openRecord);
+      openImageViewer(recordImageItems(record), Number(button.dataset.openImage));
+    });
+  });
+}
+
 function ensureComposerForImages() {
   if (document.body.classList.contains("auth-mode")) return false;
   if (state.sidePanel !== "compose" || !document.querySelector("#record-text")) {
@@ -1216,45 +1160,21 @@ async function addImagePaths(paths, message) {
   return added;
 }
 
-async function clipboardHasImage() {
-  try {
-    return Boolean(await api.clipboardHasImage?.());
-  } catch (_error) {
-    return false;
-  }
-}
-
-async function pasteClipboardImages(token, files = []) {
-  if (await addImagePaths(files, "已粘贴图片")) return true;
-  const paths = await run(() => api.pasteImages());
-  if (!isCurrentSession(token)) return true;
-  await addImagePaths(paths || [], "已粘贴图片");
-  return Boolean(paths?.length);
-}
-
-async function handleComposerPasteShortcut(event) {
-  const isPaste = event.key?.toLowerCase?.() === "v" && (event.metaKey || event.ctrlKey) && !event.altKey;
-  if (!isPaste) return;
-  const token = state.sessionToken;
-  if (!await clipboardHasImage()) return;
-  event.preventDefault();
-  event.stopPropagation();
-  await pasteClipboardImages(token);
-}
-
 async function handlePasteImages(event) {
-  const token = state.sessionToken;
+  if (isTextEntryTarget(event.target)) return;
   const files = imagePathsFromFiles(event.clipboardData?.files);
   const items = Array.from(event.clipboardData?.items || []);
-  const eventHasImage = files.length || items.some((item) => String(item.type || "").startsWith("image/"));
-  const hasImage = eventHasImage || await clipboardHasImage();
+  const hasImage = files.length || items.some((item) => String(item.type || "").startsWith("image/"));
   if (!hasImage) return;
   event.preventDefault();
   event.stopPropagation();
-  await pasteClipboardImages(token, files);
+  if (await addImagePaths(files, "已粘贴图片")) return;
+  const paths = await run(() => api.pasteImages());
+  await addImagePaths(paths || [], "已粘贴图片");
 }
 
 function handleDragOverImages(event) {
+  if (isTextEntryTarget(event.target)) return;
   const files = Array.from(event.dataTransfer?.items || []);
   if (!files.some((item) => item.kind === "file")) return;
   event.preventDefault();
@@ -1262,6 +1182,7 @@ function handleDragOverImages(event) {
 }
 
 async function handleDropImages(event) {
+  if (isTextEntryTarget(event.target)) return;
   const paths = imagePathsFromFiles(event.dataTransfer?.files);
   if (!paths.length) return;
   event.preventDefault();
@@ -1273,7 +1194,6 @@ async function handleGlobalPaste(event) {
   if (document.body.classList.contains("auth-mode")) return;
   if (state.imageViewer) return;
   if (event.defaultPrevented) return;
-  if (event.target.closest?.(".composer")) return;
   await handlePasteImages(event);
 }
 
@@ -1341,14 +1261,6 @@ function addPendingImages(paths) {
   return true;
 }
 
-function replaceRecordInState(record) {
-  const replace = (items) => items.map((item) => (item.id === record.id ? record : item));
-  state.allRecords = replace(state.allRecords);
-  state.records = state.view === "favorites" && !record.favorite
-    ? state.records.filter((item) => item.id !== record.id)
-    : replace(state.records);
-}
-
 function bindFilterEvents() {
   const search = document.querySelector("#search");
   if (!search) return;
@@ -1357,8 +1269,7 @@ function bindFilterEvents() {
     window.clearTimeout(timer);
     timer = window.setTimeout(async () => {
       state.query = event.target.value;
-      const loaded = await loadRecords();
-      if (!loaded) return;
+      await loadRecords();
       renderApp();
     }, 160);
   });
@@ -1366,8 +1277,7 @@ function bindFilterEvents() {
     button.addEventListener("click", async () => {
       syncActiveInputs();
       state.mood = button.dataset.filterMood;
-      const loaded = await loadRecords();
-      if (!loaded) return;
+      await loadRecords();
       renderApp();
     });
   });
@@ -1375,21 +1285,18 @@ function bindFilterEvents() {
     button.addEventListener("click", async () => {
       syncActiveInputs();
       state.tag = button.dataset.tagFilter;
-      const loaded = await loadRecords();
-      if (!loaded) return;
+      await loadRecords();
       renderApp();
     });
   });
   document.querySelector("#date-from")?.addEventListener("change", async (event) => {
     state.dateFrom = event.target.value;
-    const loaded = await loadRecords();
-    if (!loaded) return;
+    await loadRecords();
     renderApp();
   });
   document.querySelector("#date-to")?.addEventListener("change", async (event) => {
     state.dateTo = event.target.value;
-    const loaded = await loadRecords();
-    if (!loaded) return;
+    await loadRecords();
     renderApp();
   });
 }
@@ -1410,23 +1317,18 @@ function bindContentEvents() {
     if (tag) {
       syncActiveInputs();
       state.tag = tag.dataset.tag;
-      const loaded = await loadRecords();
-      if (!loaded) return;
+      await loadRecords();
       renderApp();
     }
     if (like) {
-      const token = state.sessionToken;
       const result = await run(() => api.toggleLike(like.dataset.like));
-      if (!isCurrentSession(token)) return;
       if (result) toast(result.liked ? "已收进喜欢的片刻" : "已取消喜欢");
-      if (result) replaceRecordInState(result);
+      await loadRecords();
       renderApp();
     }
     if (favorite) {
-      const token = state.sessionToken;
-      const result = await run(() => api.toggleFavorite(favorite.dataset.favorite));
-      if (!isCurrentSession(token)) return;
-      if (result) replaceRecordInState(result);
+      await run(() => api.toggleFavorite(favorite.dataset.favorite));
+      await loadRecords();
       renderApp();
     }
     if (edit) {
@@ -1440,12 +1342,9 @@ function bindContentEvents() {
       renderApp();
     }
     if (del && window.confirm("确定删除这条记录吗？")) {
-      const token = state.sessionToken;
       const result = await run(() => api.deleteRecord(del.dataset.delete), "已删除");
-      if (!isCurrentSession(token)) return;
       if (result) {
-        const loaded = await loadRecords(token);
-        if (!loaded) return;
+        await loadRecords();
         renderApp();
       }
     }
@@ -1507,13 +1406,11 @@ async function switchTopView(step) {
   const current = TOP_VIEWS.includes(state.view) ? state.view : "timeline";
   const index = SWIPE_VIEWS.indexOf(current);
   state.view = SWIPE_VIEWS[(index + step + SWIPE_VIEWS.length) % SWIPE_VIEWS.length];
-  const loaded = await loadRecords();
-  if (!loaded) return;
+  await loadRecords();
   renderApp();
 }
 
 async function saveRecord() {
-  const token = state.sessionToken;
   const input = {
     text: document.querySelector("#record-text").value,
     mood: document.querySelector("#record-mood").value,
@@ -1524,7 +1421,6 @@ async function saveRecord() {
   const result = state.editing
     ? await run(() => api.updateRecord(state.editing.id, { ...input, favorite: state.editing.favorite, keepAttachments: state.keepAttachments }), "修改已保存")
     : await run(() => api.createRecord(input), "已保存");
-  if (!isCurrentSession(token)) return;
   if (!result) return;
   state.editing = null;
   state.pendingImages = [];
@@ -1535,13 +1431,11 @@ async function saveRecord() {
   state.draftLocation = "";
   state.month = toMonthKey(result.createdAt || new Date());
   state.selectedDay = toDateKey(result.createdAt || new Date());
-  const loaded = await loadRecords(token);
-  if (!loaded) return;
+  await loadRecords();
   renderApp();
 }
 
 function lockToAuth() {
-  endSession();
   state.records = [];
   state.allRecords = [];
   state.query = "";

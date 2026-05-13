@@ -66,13 +66,16 @@ function sanitizeRecord(record) {
   };
 }
 
-function createStore(baseDir) {
+function createStore(baseDir, options = {}) {
   const dataDir = path.join(baseDir, "private-moments");
   const attachmentsDir = path.join(dataDir, "attachments");
+  const thumbnailsDir = path.join(dataDir, "thumbnails");
   const recordsPath = path.join(dataDir, "records.json");
+  const createThumbnail = typeof options.createThumbnail === "function" ? options.createThumbnail : null;
 
   function init() {
     ensureDir(attachmentsDir);
+    ensureDir(thumbnailsDir);
     if (!fs.existsSync(recordsPath)) {
       writeJson(recordsPath, { version: DATA_VERSION, records: [] });
     }
@@ -119,6 +122,26 @@ function createStore(baseDir) {
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
+  function thumbnailNameFor(filename) {
+    const safeName = path.basename(String(filename || ""));
+    const parsed = path.parse(safeName);
+    return `${parsed.name || safeName}.jpg`;
+  }
+
+  function tryCreateThumbnail(sourcePath, filename) {
+    if (!createThumbnail) return;
+    const thumbnailPath = path.join(thumbnailsDir, thumbnailNameFor(filename));
+    try {
+      createThumbnail(sourcePath, thumbnailPath);
+    } catch (_error) {
+      try {
+        fs.rmSync(thumbnailPath, { force: true });
+      } catch (_cleanupError) {
+        // A missing or partial thumbnail should never block saving a record.
+      }
+    }
+  }
+
   function copyAttachments(filePaths = []) {
     init();
     return filePaths.slice(0, 9).map((filePath) => {
@@ -127,7 +150,9 @@ function createStore(baseDir) {
         throw new Error("仅支持常见图片格式");
       }
       const filename = `${createId("img")}${ext}`;
-      fs.copyFileSync(filePath, path.join(attachmentsDir, filename));
+      const targetPath = path.join(attachmentsDir, filename);
+      fs.copyFileSync(filePath, targetPath);
+      tryCreateThumbnail(targetPath, filename);
       return filename;
     });
   }
@@ -236,8 +261,17 @@ function createStore(baseDir) {
     return fullPath;
   }
 
+  function resolveThumbnail(filename) {
+    const thumbnailPath = path.join(thumbnailsDir, thumbnailNameFor(filename));
+    if (!thumbnailPath.startsWith(thumbnailsDir)) throw new Error("缩略图路径无效");
+    if (!fs.existsSync(thumbnailPath) && createThumbnail) {
+      tryCreateThumbnail(resolveAttachment(filename), filename);
+    }
+    return fs.existsSync(thumbnailPath) ? thumbnailPath : resolveAttachment(filename);
+  }
+
   return {
-    paths: { dataDir, attachmentsDir, recordsPath },
+    paths: { dataDir, attachmentsDir, thumbnailsDir, recordsPath },
     init,
     listRecords,
     createRecord,
@@ -246,7 +280,8 @@ function createStore(baseDir) {
     toggleLike,
     deleteRecord,
     exportData,
-    resolveAttachment
+    resolveAttachment,
+    resolveThumbnail
   };
 }
 

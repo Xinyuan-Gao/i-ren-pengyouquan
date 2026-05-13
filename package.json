@@ -5,7 +5,7 @@
   "main": "src/main/main.js",
   "scripts": {
     "start": "NODE_OPTIONS= electron .",
-    "package:mac:app": "NODE_OPTIONS= electron-packager . \"i 人朋友圈\" --platform=darwin --arch=arm64 --out=release --overwrite --electron-version=30.5.1 --electron-zip-dir=.electron-download --app-version=0.1.0 --app-bundle-id=com.local.private-moments --app-category-type=public.app-category.productivity --icon=assets/icon --asar --ignore='^/release($|/)' --ignore='^/dist($|/)' --ignore='^/.npm-cache($|/)' --ignore='^/.electron-download($|/)' --ignore='^/tests($|/)' --ignore='^/scripts($|/)'",
+    "package:mac:app": "NODE_OPTIONS= electron-packager . \"i 人朋友圈\" --platform=darwin --arch=arm64 --out=release --overwrite --electron-version=30.5.1 --electron-zip-dir=.electron-download --app-version=0.1.0 --app-bundle-id=com.local.private-moments --app-category-type=public.app-category.productivity --icon=assets/icon --asar --ignore='^/release($|/)' --ignore='^/dist($|/)' --ignore='^/docs($|/)' --ignore='^/tmp($|/)' --ignore='^/.npm-cache($|/)' --ignore='^/.electron-download($|/)' --ignore='^/tests($|/)' --ignore='^/scripts($|/)' --ignore='^/main\\.js$' --ignore='^/renderer\\.js$'",
     "package:mac": "electron-builder --mac dmg pkg --arm64 --publish never",
     "package:mac:dmg": "electron-builder --mac dmg --arm64 --publish never",
     "package:mac:pkg": "electron-builder --mac pkg --arm64 --publish never",
@@ -14,6 +14,7 @@
     "package:win:nsis": "electron-builder --win nsis --x64 --publish never",
     "package:win:dir": "electron-builder --win --x64 --dir --publish never",
     "smoke": "node scripts/smoke-test.js",
+    "smoke:input": "NODE_OPTIONS= electron scripts/input-smoke-test.js",
     "test": "node --test tests/*.test.js"
   },
   "keywords": [

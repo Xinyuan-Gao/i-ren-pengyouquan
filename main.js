@@ -1,6 +1,6 @@
 "use strict";
 
-const { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, protocol, net, screen } = require("electron");
+const { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, protocol, net, screen } = require("electron");
 const fs = require("fs");
 const path = require("path");
 const { fileURLToPath, pathToFileURL } = require("url");
@@ -22,7 +22,6 @@ const WINDOW_SIZE = {
 };
 
 const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".avif"]);
-const THUMBNAIL_MAX_EDGE = 480;
 
 function readWindowState() {
   try {
@@ -47,21 +46,6 @@ function saveWindowState() {
   const bounds = mainWindow.getBounds();
   fs.mkdirSync(path.dirname(windowStatePath), { recursive: true });
   fs.writeFileSync(windowStatePath, JSON.stringify(bounds, null, 2), "utf8");
-}
-
-function createThumbnail(sourcePath, targetPath) {
-  const image = nativeImage.createFromPath(sourcePath);
-  if (image.isEmpty()) return;
-  const size = image.getSize();
-  const maxEdge = Math.max(size.width, size.height);
-  const scale = maxEdge > THUMBNAIL_MAX_EDGE ? THUMBNAIL_MAX_EDGE / maxEdge : 1;
-  const thumbnail = image.resize({
-    width: Math.max(1, Math.round(size.width * scale)),
-    height: Math.max(1, Math.round(size.height * scale)),
-    quality: "good"
-  });
-  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-  fs.writeFileSync(targetPath, thumbnail.toJPEG(82));
 }
 
 function requireEntered() {
@@ -234,10 +218,6 @@ function registerIpc() {
     fs.writeFileSync(filePath, image.toPNG());
     return [filePath];
   });
-  ipcMain.handle("images:clipboard-has-image", () => {
-    requireEntered();
-    return clipboardFilePaths().length > 0 || !clipboard.readImage().isEmpty();
-  });
 
   ipcMain.handle("records:list", (_event, filters) => {
     requireEntered();
@@ -277,19 +257,13 @@ function registerIpc() {
 
 app.whenReady().then(() => {
   windowStatePath = path.join(app.getPath("userData"), "private-moments", "window-state.json");
-  store = createStore(app.getPath("userData"), { createThumbnail });
+  store = createStore(app.getPath("userData"));
   store.init();
 
   protocol.handle("private-attachment", (request) => {
     requireEntered();
     const url = new URL(request.url);
     const filePath = store.resolveAttachment(decodeURIComponent(url.hostname || url.pathname.slice(1)));
-    return net.fetch(pathToFileURL(filePath).toString());
-  });
-  protocol.handle("private-thumbnail", (request) => {
-    requireEntered();
-    const url = new URL(request.url);
-    const filePath = store.resolveThumbnail(decodeURIComponent(url.hostname || url.pathname.slice(1)));
     return net.fetch(pathToFileURL(filePath).toString());
   });
 

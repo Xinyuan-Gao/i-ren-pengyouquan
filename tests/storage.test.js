@@ -7,9 +7,9 @@ const os = require("node:os");
 const path = require("node:path");
 const { createStore } = require("../src/main/storage");
 
-function makeTempStore() {
+function makeTempStore(options) {
   const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "private-moments-test-"));
-  return { baseDir, store: createStore(baseDir) };
+  return { baseDir, store: createStore(baseDir, options) };
 }
 
 function writeTinyPng(dir, name = "source.png") {
@@ -127,6 +127,43 @@ test("image attachments are copied into app storage without mutating source file
     () => store.createRecord({ text: "not an image", imagePaths: [path.join(baseDir, "note.txt")] }),
     /仅支持常见图片格式/
   );
+});
+
+test("image attachments get lightweight thumbnails with safe fallback", () => {
+  const { baseDir, store } = makeTempStore({
+    createThumbnail(_sourcePath, targetPath) {
+      fs.writeFileSync(targetPath, "thumb");
+    }
+  });
+  const sourceImage = writeTinyPng(baseDir);
+
+  const record = store.createRecord({
+    text: "Thumbnail me",
+    mood: "happy",
+    imagePaths: [sourceImage]
+  });
+
+  const thumbnailPath = store.resolveThumbnail(record.attachments[0]);
+  assert.equal(path.dirname(thumbnailPath), store.paths.thumbnailsDir);
+  assert.equal(fs.readFileSync(thumbnailPath, "utf8"), "thumb");
+
+  fs.rmSync(thumbnailPath);
+  const regeneratedPath = store.resolveThumbnail(record.attachments[0]);
+  assert.equal(regeneratedPath, thumbnailPath);
+  assert.equal(fs.readFileSync(regeneratedPath, "utf8"), "thumb");
+});
+
+test("thumbnail resolution falls back to original attachments without a thumbnailer", () => {
+  const { baseDir, store } = makeTempStore();
+  const sourceImage = writeTinyPng(baseDir);
+
+  const record = store.createRecord({
+    text: "Fallback thumbnail",
+    mood: "happy",
+    imagePaths: [sourceImage]
+  });
+
+  assert.equal(store.resolveThumbnail(record.attachments[0]), store.resolveAttachment(record.attachments[0]));
 });
 
 test("json export contains records but no auth material", () => {
